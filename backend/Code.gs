@@ -107,11 +107,11 @@ function setup() {
   defaults.forEach(function (row) { if (existing[row[0]] === undefined) cfg.appendRow(row); });
 
   const log = sheet('Log');
-  if (log.getLastRow() === 0) log.appendRow(LOG_COLUMNS);
+  ensureHeader_(log, LOG_COLUMNS);
   log.getRange('B2:C').setNumberFormat('@');   // Date, Time must stay text (no timezone drift)
   log.getRange('K2:K').setNumberFormat('@');   // Updated At stays text
   const audit = sheet('Audit');
-  if (audit.getLastRow() === 0) audit.appendRow(['Timestamp','Row ID','Action','Changed By','Before','After']);
+  ensureHeader_(audit, AUDIT_COLUMNS);
 
   const has = ScriptApp.getProjectTriggers().some(function (t) { return t.getHandlerFunction() === 'dailyBackup'; });
   if (!has) ScriptApp.newTrigger('dailyBackup').timeBased().everyDays(1).atHour(2).create();
@@ -277,8 +277,20 @@ function parseSeedRows(values) {
 // ---- Apps Script glue (Sheet I/O). No globals are touched at load time. ----
 
 const LOG_COLUMNS = ['Row ID','Date','Time','Recharge','Description','Remark','Balance','Charges','Entered By','Edited By','Updated At'];
+const AUDIT_COLUMNS = ['Timestamp','Row ID','Action','Changed By','Before','After'];
 
 function sheet(name) { return SpreadsheetApp.getActive().getSheetByName(name); }
+
+// Guarantee row 1 is the header row. Every reader assumes it (`slice(1)`, loops start at
+// index 1), so a sheet holding data but no header would silently drop its first row.
+// Repair it here rather than trust that setup() ran before anything was written.
+function ensureHeader_(sh, cols) {
+  const head = sh.getRange(1, 1, 1, cols.length).getValues()[0];
+  if (JSON.stringify(head) === JSON.stringify(cols)) return;
+  if (sh.getLastRow() === 0) { sh.appendRow(cols); return; }
+  sh.insertRowBefore(1);
+  sh.getRange(1, 1, 1, cols.length).setValues([cols]);
+}
 
 function readConfig() {
   const out = {};
