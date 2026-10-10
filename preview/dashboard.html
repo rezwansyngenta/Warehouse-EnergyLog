@@ -409,32 +409,10 @@
 <script src="chart.umd.min.js"></script>
 <script>
 /* ============================ data ============================ */
-function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
-const rnd=mulberry32(7);
+/* Readings come from the Google Sheet (see backend/). No bundled/dummy data - until the
+   front end is wired to the Sheet's /exec API, ROWS is empty and the dashboard shows an
+   empty state rather than fabricated readings. */
 const ROWS=[];
-(function(){
-  let bal=9000;                                          // opening balance before the log starts
-  const end=new Date(2026,9,10);
-  for(let d=new Date(2025,0,1); d<=end; d.setDate(d.getDate()+1)){
-    const date=new Date(d);
-    const topUp = bal<7000 ? 4500 : 0;                     // at most one top-up a day (on the first reading)
-    const checks = rnd()<0.16 ? 2 : 1;                     // some days the guard checks the meter twice
-    for(let c=0;c<checks;c++){
-      let use=55+Math.round(rnd()*95); if(rnd()<0.15) use+=95;
-      const recharge = c===0 ? topUp : 0;
-      const charges = recharge>0 ? 168+Math.round(rnd()*60) : 0;
-      const prev=bal; bal=prev+recharge-use-charges;
-      ROWS.push({ id:'WH-'+String(date.getFullYear()).slice(2)+String(1000+ROWS.length), date,
-                  time:(c===0?String(8+Math.round(rnd()*2)):String(17+Math.round(rnd()*3))).padStart(2,'0')+':'+String(Math.round(rnd()*59)).padStart(2,'0'),
-                  recharge, charges, balance:bal, consumption:prev+recharge-bal,
-                  description: recharge>0?'Monthly top-up via bank':'Routine daily reading',
-                  remark: recharge>0?'Includes meter charges':(rnd()<0.06?'Guard noted a flicker':'—'),
-                  flag: recharge>0?'recharge':(rnd()<0.05?'check':''), enteredBy:'Guard (A. Karim)' });
-    }
-  }
-})();
-/* cumulative consumption for the whole book */
-(function(){ let c=0; ROWS.forEach(r=>{ c+=r.consumption; r.cumulative=c; }); })();
 
 /* ============================ helpers ============================ */
 const money = n => '৳ ' + Math.round(n).toLocaleString('en-US');
@@ -556,7 +534,7 @@ function paintCharts(){
       const ctx=day.getContext('2d'), area={top:0, bottom:day.clientHeight*1.1};
       const days=byDay(ROWS.filter(r=>mkey(r.date)===anaNav.key));   // one point per day (latest reading)
       const o=baseOpts(p,true);
-      o.scales.x.title={display:true, text:'Day of '+mlong(anaNav.key), color:p.text, font:{size:11}};
+      o.scales.x.title={display:true, text:anaNav.key?'Day of '+mlong(anaNav.key):'No data yet', color:p.text, font:{size:11}};
       made.day=new Chart(ctx,{ type:'line',
         data:{ labels: days.map(d=>String(d.date.getDate())), datasets:[
           { label:'Daily use', data: days.map(d=>d.consumption), borderColor:p.navy, backgroundColor:gradPink(ctx,area), fill:true,
@@ -572,6 +550,12 @@ function paintCharts(){
 
 /* ============================ overview / month-wise ============================ */
 function renderOverview(){
+  if(!ROWS.length){
+    document.getElementById('kpis').innerHTML='<div class="card kpi"><div class="lab"><i class="dotc" style="background:var(--brand)"></i>No readings yet</div><div class="val">—</div><div class="dl">Connect the Sheet to load readings</div></div>';
+    document.getElementById('ytdLab').textContent='No data yet';
+    document.getElementById('ytdKpis').innerHTML='';
+    return;
+  }
   const cur=byMonth[byMonth.length-1], prev=byMonth[byMonth.length-2]||cur;
   const last=ROWS[ROWS.length-1];
   const dCons=prev?cur.consumption-prev.consumption:0;
@@ -601,6 +585,11 @@ function renderOverview(){
 }
 function renderMonth(){
   const list = byMonth.filter(m=>Math.floor(m.k/100)===selYear);
+  if(!list.length){
+    document.getElementById('sumRange').textContent='—';
+    document.querySelector('#sumTable tbody').innerHTML='<tr><td colspan="5" class="muted" style="text-align:center;padding:26px">No readings yet</td></tr>';
+    return;
+  }
   document.getElementById('sumRange').textContent = mshort(list[0].k)+' – '+mshort(list[list.length-1].k);
 
   const tb=document.querySelector('#sumTable tbody'); tb.innerHTML='';
@@ -636,6 +625,7 @@ function monthNav(ids, onChange){
   Y.innerHTML=YEARS.map(y=>'<option value="'+y+'">'+y+'</option>').join('');
   let idx=MONTHS.length-1;
   function sync(){
+    if(!MONTHS.length){ L.textContent='—'; S.innerHTML=''; Y.innerHTML=''; P.disabled=true; N.disabled=true; return; }
     const k=MONTHS[idx], y=Math.floor(k/100);
     L.textContent=mname(k); Y.value=y;
     const list=monthsInYear(y);
@@ -663,7 +653,15 @@ function logRows(){
   )).slice().reverse();
 }
 function renderLog(){
-  const rows=logRows(), tb=document.querySelector('#logTable tbody'); tb.innerHTML='';
+  const tb=document.querySelector('#logTable tbody'); tb.innerHTML='';
+  const rows=logRows();
+  if(!ROWS.length){
+    document.getElementById('logCount').textContent='No readings yet';
+    const em=document.getElementById('logEmpty');
+    em.textContent='No readings yet — connect the Sheet to load the log.';
+    em.hidden=false;
+    return;
+  }
   document.getElementById('logCount').textContent = rows.length+' of '+ROWS.filter(r=>mkey(r.date)===logNav.key).length+' readings in '+mshort(logNav.key);
   document.getElementById('logEmpty').hidden = rows.length>0;
   rows.forEach(r=>{
