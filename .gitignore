@@ -1,0 +1,4 @@
+node_modules/
+*.log
+backend/.clasprc.json
+.superpowers/

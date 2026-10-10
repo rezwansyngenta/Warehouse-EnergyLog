@@ -1,0 +1,787 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<script>
+  (function(){
+    try{
+      var t=localStorage.getItem('theme');
+      if(!t) t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';
+      document.documentElement.setAttribute('data-theme', t);
+    }catch(e){ document.documentElement.setAttribute('data-theme','light'); }
+  })();
+</script>
+<title>Electricity Management · Chittagong Warehouse</title>
+<link rel="stylesheet" href="montserrat.css">
+<style>
+  :root{
+    color-scheme: light;
+    /* -------- brand palette -------- */
+    --g1:#7FDE44; --g2:#99E36D; --g3:#AAE683;
+    --brand:#019934; --brand-ink:#017030; --navy:#010066;
+    --lime-soft:rgba(127,222,68,.14);
+    --pink:#F75B9C; --pink-deep:#F70566; --pink-soft:rgba(247,91,156,.14); --pink-ink:#C40056;
+    --org:#FCBF61; --org-deep:#F5A623; --org-soft:rgba(252,191,97,.2); --org-ink:#8A5500;
+    --cy:#10CCBE; --cy-soft:rgba(16,204,190,.14); --cy-ink:#007A72;
+    /* -------- surfaces -------- */
+    --bg:#F5F5F7; --surface:#FFFFFF; --sunken:#F0F0F3;
+    --text:#1C1C1E; --text-2:#6C6C70; --text-3:#8E8E93;
+    --sep:rgba(60,60,67,.14); --fill:rgba(120,120,128,.09);
+    --r:16px; --r-sm:11px;
+    --shadow:0 1px 2px rgba(16,24,40,.04), 0 12px 32px rgba(16,24,40,.055);
+    --ring:0 0 0 4px rgba(1,153,52,.16);
+  }
+  :root[data-theme="dark"]{
+    color-scheme: dark;
+    --brand:#35C46B; --brand-ink:#4BD37D; --navy:#C9C9F5;
+    --lime-soft:rgba(127,222,68,.12);
+    --pink:#F75B9C; --pink-deep:#F70566; --pink-soft:rgba(247,91,156,.16); --pink-ink:#FAA6CA;
+    --org:#FCBF61; --org-soft:rgba(252,191,97,.16); --org-ink:#FBD598;
+    --cy:#10CCBE; --cy-soft:rgba(16,204,190,.14); --cy-ink:#97E2DC;
+    --bg:#0B0B0C; --surface:#1C1C1E; --sunken:#141416;
+    --text:#FFFFFF; --text-2:#9A9AA0; --text-3:#8E8E93;
+    --sep:rgba(84,84,88,.42); --fill:rgba(120,120,128,.18);
+    --shadow:0 1px 2px rgba(0,0,0,.5);
+    --ring:0 0 0 4px rgba(53,196,107,.22);
+  }
+  *{box-sizing:border-box}
+  html{ -webkit-text-size-adjust:100% }
+  body{
+    margin:0; background:var(--bg); color:var(--text);
+    font:15px/1.5 Montserrat,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Nirmala UI","Noto Sans Bengali",sans-serif;
+    font-variant-numeric:tabular-nums;
+  }
+  h1,h2,h3,p{margin:0}
+  button{font:inherit; color:inherit}
+
+  /* ---------------- app bar ---------------- */
+  .appbar{position:sticky; top:0; z-index:40; display:flex; align-items:center; gap:16px;
+          padding:0 max(20px, calc((100vw - 1200px))/2); height:60px;
+          background:color-mix(in srgb, var(--bg) 84%, transparent);
+          backdrop-filter:saturate(180%) blur(20px); -webkit-backdrop-filter:saturate(180%) blur(20px);
+          border-bottom:1px solid var(--sep)}
+  .appbar::after{content:''; position:absolute; left:0; right:0; bottom:-1px; height:2px; pointer-events:none;
+                 background:linear-gradient(90deg, var(--g1), var(--g2) 45%, var(--brand))}
+  .logo{height:20px; width:auto; display:block; flex:none}
+  :root[data-theme="dark"] .logo{filter:invert(1)}
+  .ctx b{display:block; font-size:13.5px; font-weight:600; letter-spacing:-.01em; line-height:1.25}
+  .ctx span{display:block; font-size:11.5px; color:var(--text-3)}
+  .appbar .spacer{flex:1}
+  .themebtn{width:38px; height:38px; border-radius:50%; border:1px solid var(--sep); background:var(--surface);
+            display:grid; place-items:center; cursor:pointer; color:var(--text-2); position:relative; overflow:hidden}
+  .themebtn svg{width:18px; height:18px; grid-area:1/1; transition:opacity .18s ease, transform .22s ease}
+  .themebtn .sun{opacity:0; transform:rotate(-90deg) scale(.6)}
+  .themebtn .moon{opacity:1; transform:none}
+  :root[data-theme="dark"] .themebtn .sun{opacity:1; transform:none}
+  :root[data-theme="dark"] .themebtn .moon{opacity:0; transform:rotate(90deg) scale(.6)}
+  .themebtn:focus-visible{outline:none; box-shadow:var(--ring)}
+
+  /* ---------------- tab bar ---------------- */
+  .tabwrap{position:sticky; top:60px; z-index:35; padding:14px max(20px, calc((100vw - 1200px))/2) 0;
+           background:linear-gradient(var(--bg) 70%, transparent)}
+  .tabs{display:inline-flex; gap:3px; background:var(--sunken); padding:3px; border-radius:12px; box-shadow:inset 0 0 0 1px var(--sep)}
+  .tabs button{border:0; background:none; cursor:pointer; font-size:13.5px; font-weight:600; color:var(--text-2);
+               padding:8px 16px; border-radius:9px; transition:background .15s ease, color .15s ease; min-height:36px}
+  .tabs button:hover{color:var(--text)}
+  .tabs button.on{background:var(--surface); color:var(--text); box-shadow:0 1px 2px rgba(16,24,40,.08)}
+  .tabs button:focus-visible{outline:none; box-shadow:var(--ring)}
+
+  main{padding:0 max(20px, calc((100vw - 1200px))/2) 64px}
+  .panel{display:none}
+  .panel.on{display:block; animation:rise .24s ease both}
+  @keyframes rise{from{opacity:0; transform:translateY(6px)} to{opacity:1; transform:none}}
+  @media (prefers-reduced-motion: reduce){ .panel.on{animation:none} *{transition:none!important} html{scroll-behavior:auto} }
+
+  .head{padding:22px 0 18px}
+  .head h1{font-size:26px; font-weight:700; letter-spacing:-.025em}
+  .head p{font-size:13.5px; color:var(--text-2); margin-top:5px}
+
+  .card{background:var(--surface); border-radius:var(--r); box-shadow:var(--shadow); overflow:hidden}
+  .cardhead{display:flex; align-items:center; gap:14px; padding:16px 20px; border-bottom:1px solid var(--sep); flex-wrap:wrap}
+  .cardhead h2{font-size:15px; font-weight:650; letter-spacing:-.01em}
+  .cardhead .note{font-size:12px; color:var(--text-3)}
+  .cardhead .spacer{flex:1}
+  .cardbody{padding:18px 20px}
+  .grid{display:grid; gap:16px}
+  .kpis{grid-template-columns:repeat(4,minmax(0,1fr))}
+  @media (max-width:900px){ .kpis{grid-template-columns:repeat(2,minmax(0,1fr))} }
+  @media (max-width:460px){ .kpis{grid-template-columns:1fr} }
+  .kpis.k2{grid-template-columns:repeat(2,minmax(0,1fr))}
+  @media (max-width:460px){ .kpis.k2{grid-template-columns:1fr} }
+  .seclab{font-size:10.5px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:var(--text-3); margin:26px 2px 16px}
+
+  .kpi{padding:16px 18px}
+  .kpi .lab{display:flex; align-items:center; gap:7px; font-size:10.5px; font-weight:700; letter-spacing:.07em;
+            text-transform:uppercase; color:var(--text-3)}
+  .kpi .val{font-size:26px; font-weight:700; letter-spacing:-.025em; margin-top:9px; line-height:1.1}
+  .kpi .dl{font-size:12px; color:var(--text-2); margin-top:7px; display:flex; align-items:center; gap:5px}
+  .dotc{width:8px; height:8px; border-radius:50%; flex:none}
+  .up{color:var(--brand-ink); font-weight:600}
+  .down{color:var(--pink-ink); font-weight:600}
+
+  /* ---------------- buttons ---------------- */
+  .btn{display:inline-flex; align-items:center; gap:7px; border:0; border-radius:var(--r-sm); cursor:pointer;
+       font-size:13.5px; font-weight:600; padding:0 14px; min-height:38px; transition:transform .12s ease, opacity .12s ease, background .15s ease}
+  .btn:active{transform:scale(.985)}
+  .btn:focus-visible{outline:none; box-shadow:var(--ring)}
+  .btn.primary{background:var(--brand); color:#fff}
+  .btn.ghost{background:transparent; box-shadow:inset 0 0 0 1px var(--sep)}
+  .btn.ghost:hover{background:var(--fill)}
+  .btn svg{width:16px; height:16px; flex:none}
+
+  select,input[type=text],input[type=number],textarea{
+    font:inherit; font-size:13.5px; color:var(--text); background:var(--sunken);
+    border:1px solid transparent; border-radius:var(--r-sm); padding:9px 12px; min-height:38px; outline:none}
+  select:focus,input:focus,textarea:focus{border-color:var(--brand); box-shadow:var(--ring)}
+  select{cursor:pointer; padding-right:30px; appearance:none;
+         background-image:url("data:image/svg+xml;charset=utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238E8E93' stroke-width='2.4' stroke-linecap='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+         background-repeat:no-repeat; background-position:right 9px center; background-size:15px}
+  .field{display:flex; flex-direction:column; gap:5px}
+  .field label{font-size:11px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--text-3)}
+
+  /* ---------------- tables ---------------- */
+  .tablescroll{overflow-x:auto}
+  table{width:100%; border-collapse:separate; border-spacing:0; font-size:13.5px; min-width:640px}
+  thead th{position:sticky; top:0; z-index:1; background:var(--surface);
+           font-size:10.5px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:var(--text-3);
+           text-align:right; padding:11px 20px; border-bottom:1px solid var(--sep); white-space:nowrap}
+  thead th:first-child{text-align:left}
+  tbody td{padding:12px 20px; border-top:1px solid var(--sep); text-align:right; white-space:nowrap}
+  tbody td:first-child{text-align:left}
+  tbody tr:first-child td{border-top:0}
+  tbody tr.clickable{cursor:pointer}
+  tbody tr.clickable:hover{background:var(--fill)}
+  tbody tr.thisrow{background:var(--lime-soft)}
+  tbody tr.thisrow:hover{background:var(--lime-soft)}
+  .mono{font-weight:650}
+  .muted{color:var(--text-2)}
+  .tag{display:inline-flex; align-items:center; gap:5px; font-size:10px; font-weight:700; letter-spacing:.05em;
+       text-transform:uppercase; padding:3px 8px; border-radius:99px; background:var(--lime-soft); color:var(--brand-ink)}
+  .tag.warn{background:var(--org-soft); color:var(--org-ink)}
+  .tag.graytag{background:var(--fill); color:var(--text-3)}
+  .iconbtn{width:30px; height:30px; border:0; border-radius:8px; background:transparent; color:var(--text-3); cursor:pointer;
+           display:inline-grid; place-items:center}
+  .iconbtn:hover{background:var(--fill); color:var(--text)}
+  .iconbtn:focus-visible{outline:none; box-shadow:var(--ring)}
+  .toolbar{display:flex; align-items:center; gap:10px; padding:14px 20px; border-bottom:1px solid var(--sep); flex-wrap:wrap}
+  .toolbar .spacer{flex:1}
+  .count{font-size:12.5px; color:var(--text-3)}
+  .search{display:flex; align-items:center; gap:8px; background:var(--sunken); border-radius:var(--r-sm); padding:0 11px; min-height:38px}
+  .search input{background:none; border:0; padding:0; min-height:auto}
+  .empty{padding:44px 20px; text-align:center; color:var(--text-3); font-size:13.5px}
+
+  /* ---------------- month navigator (‹ Month ▾ › + year) ---------------- */
+  .mnav{display:inline-flex; align-items:center; gap:2px; background:var(--sunken); border-radius:var(--r-sm); padding:3px}
+  .mnavbtn{width:32px; height:32px; border:0; border-radius:8px; background:none; color:var(--text-2); cursor:pointer;
+           display:grid; place-items:center; padding:0}
+  .mnavbtn svg{width:18px; height:18px}
+  .mnavbtn:hover{background:var(--surface); color:var(--text)}
+  .mnavbtn:focus-visible{outline:none; box-shadow:var(--ring)}
+  .mnavbtn[disabled]{opacity:.35; pointer-events:none}
+  .mnavlabel{position:relative; min-width:120px; align-self:stretch; display:flex; align-items:center; justify-content:center; padding:0 8px}
+  .mnavlabel .shown{font-size:13.5px; font-weight:600; white-space:nowrap}
+  .mnavlabel select{position:absolute; inset:0; width:100%; height:100%; opacity:0; cursor:pointer; font:inherit;
+                    border:0; min-height:0; padding:0; background:none; appearance:none}
+
+  .legend{display:flex; align-items:center; gap:18px; flex-wrap:wrap}
+  .legend span{display:inline-flex; align-items:center; gap:7px; font-size:12px; color:var(--text-2)}
+  .swatch{width:11px; height:11px; border-radius:3px; flex:none}
+  .chartbox{position:relative; height:290px}
+  .chartbox.short{height:250px}
+
+  /* ---------------- modal ---------------- */
+  .scrim{position:fixed; inset:0; background:rgba(10,10,12,.45); opacity:0; pointer-events:none; transition:opacity .2s ease; z-index:60}
+  .scrim.on{opacity:1; pointer-events:auto}
+  .modal{position:fixed; z-index:70; left:50%; top:50%; transform:translate(-50%,-46%) scale(.98); opacity:0; pointer-events:none;
+         width:min(520px,92vw); max-height:88dvh; overflow:auto; background:var(--surface); border-radius:20px;
+         box-shadow:0 30px 80px rgba(10,10,12,.35); transition:opacity .2s ease, transform .2s ease}
+  .modal.on{opacity:1; transform:translate(-50%,-50%) scale(1); pointer-events:auto}
+  .modal .mhead{padding:20px 22px 14px; border-bottom:1px solid var(--sep)}
+  .modal h2{font-size:18px; font-weight:700; letter-spacing:-.015em}
+  .modal .mhead p{font-size:12.5px; color:var(--text-2); margin-top:3px}
+  .modal .mbody{padding:18px 22px; display:grid; gap:14px}
+  .modal .mfoot{padding:14px 22px 20px; display:flex; gap:10px; justify-content:flex-end; border-top:1px solid var(--sep)}
+  .two{display:grid; grid-template-columns:1fr 1fr; gap:14px}
+  @media (max-width:520px){ .two{grid-template-columns:1fr} }
+  .hist{border-top:1px solid var(--sep); margin-top:4px; padding-top:12px}
+  .hist .h{font-size:10.5px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:var(--text-3); margin-bottom:7px}
+  .hist ul{margin:0; padding:0; list-style:none; font-size:12.5px; color:var(--text-2)}
+  .hist li{padding:4px 0; display:flex; gap:10px}
+  .hist li b{color:var(--text); font-weight:600}
+  .foot{padding:34px 0 0; font-size:11.5px; color:var(--text-3); display:flex; gap:10px; align-items:center; flex-wrap:wrap}
+</style>
+</head>
+<body>
+
+<header class="appbar">
+  <img class="logo" src="assets/syngenta-logo.svg" alt="Syngenta">
+  <div class="ctx">
+    <b>Chittagong Warehouse</b>
+    <span>Daily electricity log</span>
+  </div>
+  <div class="spacer"></div>
+  <button class="themebtn" id="themeToggle" type="button" aria-label="Switch between light and dark mode">
+    <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+    <svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M21 12.8A8.5 8.5 0 1 1 11.2 3a6.6 6.6 0 0 0 9.8 9.8z"/></svg>
+  </button>
+</header>
+
+<div class="tabwrap">
+  <nav class="tabs" role="tablist" aria-label="Views">
+    <button role="tab" data-t="overview" class="on" aria-selected="true">Overview</button>
+    <button role="tab" data-t="month" aria-selected="false">Month-wise</button>
+    <button role="tab" data-t="log" aria-selected="false">Log book</button>
+    <button role="tab" data-t="analytics" aria-selected="false">Analytics</button>
+  </nav>
+</div>
+
+<main>
+  <!-- ================= OVERVIEW ================= -->
+  <section class="panel on" id="t-overview" role="tabpanel">
+    <div class="head">
+      <h1>Overview</h1>
+      <p>At-a-glance figures from the Chittagong warehouse meter.</p>
+    </div>
+
+    <div class="grid kpis" id="kpis"></div>
+
+    <div class="seclab" id="ytdLab">Year to date</div>
+    <div class="grid kpis k2" id="ytdKpis"></div>
+
+    <div class="foot"><span>Values in BDT.</span><span>·</span><span>Data source: warehouse electricity log book</span></div>
+  </section>
+
+  <!-- ================= MONTH-WISE REPORT ================= -->
+  <section class="panel" id="t-month" role="tabpanel">
+    <div class="head">
+      <h1>Month-wise report</h1>
+      <p>Recharge and consumption by month — the report the warehouse manager submits to top management at the end of each month.</p>
+    </div>
+
+    <div class="grid" style="grid-template-columns:1fr">
+      <div class="card">
+        <div class="cardhead">
+          <h2>Recharge vs consumption</h2>
+          <select id="yearSel" aria-label="Year"></select>
+          <span class="note" id="sumRange">—</span>
+          <div class="spacer"></div>
+          <div class="legend">
+            <span><i class="swatch" style="background:linear-gradient(180deg,#7FDE44,#019934)"></i>Recharge</span>
+            <span><i class="swatch" style="background:#F75B9C"></i>Consumption</span>
+          </div>
+        </div>
+        <div class="cardbody"><div class="chartbox"><canvas id="c-sum"></canvas></div></div>
+      </div>
+
+      <div class="card">
+        <div class="cardhead">
+          <h2>By month</h2>
+          <span class="note">Consumption is calculated from meter readings, so it always stays consistent.</span>
+          <div class="spacer"></div>
+          <button class="btn primary" id="export">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7.5 10.5 12 15l4.5-4.5M4.5 20h15"/></svg>
+            Export to Excel
+          </button>
+        </div>
+        <div class="cardbody" style="padding:10px 12px 12px">
+          <div class="tablescroll">
+            <table id="sumTable">
+              <thead><tr><th>Month</th><th>Recharge (BDT)</th><th>Consumption (BDT)</th><th>Days logged</th><th>Avg / day</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="foot"><span>Values in BDT.</span><span>·</span><span>Click any month to open it in the Log book.</span></div>
+  </section>
+
+  <!-- ================= LOG BOOK ================= -->
+  <section class="panel" id="t-log" role="tabpanel">
+    <div class="head">
+      <h1>Log book</h1>
+      <p>Every reading as it was entered. Correct any row — the change is recorded, and later totals recalculate themselves.</p>
+    </div>
+
+    <div class="card">
+      <div class="toolbar">
+        <div class="mnav">
+          <button class="mnavbtn" id="logPrev" type="button" aria-label="Previous month">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+          </button>
+          <div class="mnavlabel">
+            <span class="shown" id="logLabel">—</span>
+            <select id="logMonth" aria-label="Choose month"></select>
+          </div>
+          <button class="mnavbtn" id="logNext" type="button" aria-label="Next month">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
+          </button>
+        </div>
+        <select id="logYear" aria-label="Year"></select>
+        <div class="search">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" style="color:var(--text-3)"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/></svg>
+          <input type="text" id="logSearch" placeholder="Search description or remark" aria-label="Search">
+        </div>
+        <div class="spacer"></div>
+        <span class="count" id="logCount">—</span>
+        <button class="btn primary" id="exportLog" title="Download the readings currently in view as a CSV that opens in Excel">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7.5 10.5 12 15l4.5-4.5M4.5 20h15"/></svg>
+          Export to Excel
+        </button>
+      </div>
+      <div class="tablescroll">
+        <table id="logTable">
+          <thead><tr>
+            <th>Date</th><th>Time</th><th>Recharge</th><th>Description</th><th>Remark</th>
+            <th>Balance</th><th>Consumption</th><th>Cumulative</th><th>Flag</th><th></th>
+          </tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div class="empty" id="logEmpty" hidden>No readings match those filters.</div>
+    </div>
+    <div class="foot"><span>Consumption = previous balance + recharge − this balance.</span></div>
+  </section>
+
+  <!-- ================= ANALYTICS ================= -->
+  <section class="panel" id="t-analytics" role="tabpanel">
+    <div class="head">
+      <h1>Analytics</h1>
+      <p>Day-wise usage pattern across the month.</p>
+    </div>
+
+    <div class="grid" style="grid-template-columns:1fr">
+      <div class="card">
+        <div class="cardhead">
+          <h2>Day-wise consumption</h2>
+          <div class="mnav">
+            <button class="mnavbtn" id="anaPrev" type="button" aria-label="Previous month">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+            </button>
+            <div class="mnavlabel">
+              <span class="shown" id="anaLabel">—</span>
+              <select id="anaMonth" aria-label="Choose month"></select>
+            </div>
+            <button class="mnavbtn" id="anaNext" type="button" aria-label="Next month">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
+            </button>
+          </div>
+          <select id="anaYear" aria-label="Year"></select>
+          <div class="spacer"></div>
+          <div class="legend">
+            <span><i class="swatch" style="background:linear-gradient(180deg,#F75B9C,rgba(247,91,156,.25))"></i>Daily use</span>
+            <span><i class="swatch" style="background:#019934;border-radius:50%"></i>Recharge day</span>
+          </div>
+        </div>
+        <div class="cardbody"><div class="chartbox"><canvas id="c-day"></canvas></div></div>
+      </div>
+    </div>
+    <div class="foot"><span>Values in BDT.</span></div>
+  </section>
+</main>
+
+<div class="scrim" id="scrim"></div>
+<div class="modal" id="modal" role="dialog" aria-modal="true" aria-labelledby="mTitle">
+  <div class="mhead">
+    <h2 id="mTitle">Correct reading</h2>
+    <p id="mSub">—</p>
+  </div>
+  <div class="mbody">
+    <div class="two">
+      <div class="field"><label for="fRech">Recharge (BDT)</label><input type="number" id="fRech" min="0" step="1"></div>
+      <div class="field"><label for="fBal">Balance on meter (BDT)</label><input type="number" id="fBal" min="0" step="1"></div>
+    </div>
+    <div class="field"><label for="fDesc">Description</label><input type="text" id="fDesc" placeholder="e.g. Monthly top-up via bank"></div>
+    <div class="field"><label for="fRem">Remark</label><input type="text" id="fRem" placeholder="Anything the next reader should know"></div>
+    <div class="hist">
+      <div class="h">History</div>
+      <ul id="mHist"></ul>
+    </div>
+  </div>
+  <div class="mfoot">
+    <button class="btn ghost" id="mCancel">Cancel</button>
+    <button class="btn primary" id="mSave">Save correction</button>
+  </div>
+</div>
+
+<script src="chart.umd.min.js"></script>
+<script>
+/* ============================ data ============================ */
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+const rnd=mulberry32(7);
+const ROWS=[];
+(function(){
+  let bal=9000;                                          // opening balance before the log starts
+  const end=new Date(2026,9,10);
+  for(let d=new Date(2025,0,1); d<=end; d.setDate(d.getDate()+1)){
+    const date=new Date(d);
+    const topUp = bal<7000 ? 4500 : 0;                     // at most one top-up a day (on the first reading)
+    const checks = rnd()<0.16 ? 2 : 1;                     // some days the guard checks the meter twice
+    for(let c=0;c<checks;c++){
+      let use=55+Math.round(rnd()*95); if(rnd()<0.15) use+=95;
+      const recharge = c===0 ? topUp : 0;
+      const charges = recharge>0 ? 168+Math.round(rnd()*60) : 0;
+      const prev=bal; bal=prev+recharge-use-charges;
+      ROWS.push({ id:'WH-'+String(date.getFullYear()).slice(2)+String(1000+ROWS.length), date,
+                  time:(c===0?String(8+Math.round(rnd()*2)):String(17+Math.round(rnd()*3))).padStart(2,'0')+':'+String(Math.round(rnd()*59)).padStart(2,'0'),
+                  recharge, charges, balance:bal, consumption:prev+recharge-bal,
+                  description: recharge>0?'Monthly top-up via bank':'Routine daily reading',
+                  remark: recharge>0?'Includes meter charges':(rnd()<0.06?'Guard noted a flicker':'—'),
+                  flag: recharge>0?'recharge':(rnd()<0.05?'check':''), enteredBy:'Guard (A. Karim)' });
+    }
+  }
+})();
+/* cumulative consumption for the whole book */
+(function(){ let c=0; ROWS.forEach(r=>{ c+=r.consumption; r.cumulative=c; }); })();
+
+/* ============================ helpers ============================ */
+const money = n => '৳ ' + Math.round(n).toLocaleString('en-US');
+const money0 = n => Math.round(n).toLocaleString('en-US');
+const dayf = d => String(d.getDate()).padStart(2,'0')+'.'+String(d.getMonth()+1).padStart(2,'0')+'.'+String(d.getFullYear()).slice(2);
+const mkey = d => d.getFullYear()*100 + d.getMonth();
+const mshort = k => new Date(Math.floor(k/100), k%100, 1).toLocaleString('en-US',{month:'short', year:'numeric'});
+const mlong  = k => new Date(Math.floor(k/100), k%100, 1).toLocaleString('en-US',{month:'long', year:'numeric'});
+const mname  = k => new Date(Math.floor(k/100), k%100, 1).toLocaleString('en-US',{month:'long'});
+const MONTHS = [...new Set(ROWS.map(r=>mkey(r.date)))].sort((a,b)=>a-b);
+const THIS = MONTHS[MONTHS.length-1];
+const YEARS = [...new Set(ROWS.map(r=>r.date.getFullYear()))].sort((a,b)=>b-a);  // newest first
+const monthsInYear = y => MONTHS.filter(k=>Math.floor(k/100)===y);
+let selYear = Math.floor(THIS/100);   // the latest year that has readings
+const YTD = ()=>ROWS.filter(r=>r.date.getFullYear()===selYear).reduce((a,r)=>a+r.consumption,0);
+const YTDr= ()=>ROWS.filter(r=>r.date.getFullYear()===selYear).reduce((a,r)=>a+r.recharge,0);
+
+/* one point per day: group rows by calendar date, order by time then entry order.
+   The day's consumption is the sum of its rows (== previous day's last balance + recharges − this day's last balance). */
+function byDay(rows){
+  const map=new Map();
+  rows.forEach((r,i)=>{
+    const k=r.date.getFullYear()*10000+(r.date.getMonth()+1)*100+r.date.getDate();
+    if(!map.has(k)) map.set(k,[]);
+    map.get(k).push({r,i});
+  });
+  return [...map.entries()].sort((a,b)=>a[0]-b[0]).map(([,list])=>{
+    list.sort((a,b)=> String(a.r.time).localeCompare(String(b.r.time)) || a.i-b.i);   // "latest of the day" = last, tie-broken by entry order
+    const rr=list.map(o=>o.r);
+    return { date:rr[rr.length-1].date, last:rr[rr.length-1], rows:rr, count:rr.length,
+             recharge: rr.reduce((a,r)=>a+r.recharge,0), consumption: rr.reduce((a,r)=>a+r.consumption,0) };
+  });
+}
+const byMonth = MONTHS.map(k=>{
+  const rows = ROWS.filter(r=>mkey(r.date)===k);
+  const days = byDay(rows);                            // distinct days, not readings
+  const recharge = rows.reduce((a,r)=>a+r.recharge,0);
+  const consumption = rows.reduce((a,r)=>a+r.consumption,0);
+  return { k, label:mshort(k), rows, recharge, consumption, days:days.length, avg:consumption/days.length };
+});
+
+/* ============================ tabs ============================ */
+let activeTab='overview';
+function showTab(t){
+  activeTab=t;
+  document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('on', p.id==='t-'+t));
+  document.querySelectorAll('.tabs button').forEach(b=>{ const on=b.dataset.t===t; b.classList.toggle('on',on); b.setAttribute('aria-selected', on?'true':'false'); });
+  window.scrollTo({top:0, behavior:'auto'});
+  scheduleCharts();
+}
+document.querySelectorAll('.tabs button').forEach(b=>b.addEventListener('click',()=>showTab(b.dataset.t)));
+
+/* ============================ theme colours ============================ */
+const cs = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+function palette(){
+  const dark = document.documentElement.getAttribute('data-theme')==='dark';
+  return { g1:cs('--g1'), brand:cs('--brand'), pink:cs('--pink'), navy:cs('--navy'), dark,
+           text:cs('--text-3'), grid:cs('--sep'), surface:cs('--surface'),
+           tip: dark?'#2C2C2E':'#1C1C1E', tipText: dark?'#EDEDF0':'#EDEDF0' };
+}
+
+/* ============================ charts ============================ */
+let charts={};
+function killCharts(){ Object.keys(charts).forEach(k=>{ try{ charts[k].destroy() }catch(e){} }); charts={}; }
+function scheduleCharts(){
+  if(document.visibilityState==='visible') requestAnimationFrame(paintCharts);
+  else paintCharts();   // rAF never fires in a background tab
+}
+function gradBar(ctx, area){
+  const p=palette();
+  const g=ctx.createLinearGradient(0, area.top, 0, area.bottom);
+  g.addColorStop(0, p.g1); g.addColorStop(1, p.brand); return g;
+}
+function gradPink(ctx, area){
+  const g=ctx.createLinearGradient(0, area.top, 0, area.bottom);
+  g.addColorStop(0, 'rgba(247,91,156,.5)'); g.addColorStop(1, 'rgba(247,91,156,.05)'); return g;
+}
+const baseOpts = (p, moneyAxis) => ({
+  responsive:true, maintainAspectRatio:false,
+  interaction:{mode:'index', intersect:false},
+  plugins:{
+    legend:{display:false},
+    tooltip:{
+      backgroundColor:p.tip, titleColor:'#fff', bodyColor:p.tipText, padding:11, cornerRadius:10,
+      displayColors:true, boxPadding:4,
+      callbacks:{ label:c => '  ' + c.dataset.label + ': ' + money(c.parsed.y) }
+    }
+  },
+  scales:{
+    x:{ grid:{display:false}, border:{display:false}, ticks:{color:p.text, font:{size:11}} },
+    y:{ grid:{color:p.grid, drawTicks:false}, border:{display:false}, beginAtZero:true,
+        ticks:{color:p.text, font:{size:11}, padding:8, callback:v=> moneyAxis? money(v) : money0(v)} }
+  }
+});
+
+function paintCharts(){
+  const p = palette();
+  killCharts();
+  const made = {};
+  if(activeTab==='month'){
+    const el=document.getElementById('c-sum');
+    if(el){
+      const list=byMonth.filter(m=>Math.floor(m.k/100)===selYear);
+      const ctx=el.getContext('2d');
+      const area={top:0, bottom:el.clientHeight*1.1};
+      const o=baseOpts(p,true);
+      made.month=new Chart(ctx,{ type:'bar',
+        data:{ labels: list.map(m=>m.label), datasets:[
+          { label:'Recharge', data: list.map(m=>m.recharge), backgroundColor:gradBar(ctx,area), borderRadius:7, maxBarThickness:34, order:2 },
+          { label:'Consumption', data: list.map(m=>m.consumption), type:'line', borderColor:p.navy, backgroundColor:gradPink(ctx,area),
+            fill:true, tension:.35, borderWidth:2.5, pointRadius:0, pointHoverRadius:5, pointHoverBackgroundColor:p.navy, pointHoverBorderColor:p.surface, pointHoverBorderWidth:2, order:1 }
+        ]},
+        options:o });
+    }
+  }
+  if(activeTab==='analytics'){
+    const day=document.getElementById('c-day');
+    if(day){
+      const ctx=day.getContext('2d'), area={top:0, bottom:day.clientHeight*1.1};
+      const days=byDay(ROWS.filter(r=>mkey(r.date)===anaNav.key));   // one point per day (latest reading)
+      const o=baseOpts(p,true);
+      o.scales.x.title={display:true, text:'Day of '+mlong(anaNav.key), color:p.text, font:{size:11}};
+      made.day=new Chart(ctx,{ type:'line',
+        data:{ labels: days.map(d=>String(d.date.getDate())), datasets:[
+          { label:'Daily use', data: days.map(d=>d.consumption), borderColor:p.navy, backgroundColor:gradPink(ctx,area), fill:true,
+            tension:.32, borderWidth:2.5, pointRadius:0, pointHoverRadius:5, pointHoverBackgroundColor:p.navy, pointHoverBorderColor:p.surface, pointHoverBorderWidth:2 },
+          { label:'Recharge day', data: days.map(d=> d.recharge>0 ? d.consumption : null), type:'scatter',
+            backgroundColor:p.brand, borderColor:p.surface, borderWidth:2, pointRadius:5, pointHoverRadius:7, showLine:false }
+        ]},
+        options:o });
+    }
+  }
+  charts = made;
+}
+
+/* ============================ overview / month-wise ============================ */
+function renderOverview(){
+  const cur=byMonth[byMonth.length-1], prev=byMonth[byMonth.length-2]||cur;
+  const last=ROWS[ROWS.length-1];
+  const dCons=prev?cur.consumption-prev.consumption:0;
+  const dRech=prev?cur.recharge-prev.recharge:0;
+  const arrow=up=>'<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="'+(up?'M12 19V5M6 11l6-6 6 6':'M12 5v14M6 13l6 6 6-6')+'"/></svg>';
+  const kpis=[
+    { lab:'Meter balance now', dot:'var(--brand)', val:money(last.balance), dl:'as logged '+dayf(last.date)+' · '+last.time, cls:'' },
+    { lab:'Consumption · '+mshort(THIS), dot:'var(--pink)', val:money(cur.consumption), dl:(dCons>=0?arrow(true)+'<span class="up">'+money(Math.abs(dCons))+'</span> more':'<span class="down">'+money(Math.abs(dCons))+'</span> less')+' than '+mshort(prev.k), cls:'' },
+    { lab:'Recharge · '+mshort(THIS), dot:'var(--g1)', val:money(cur.recharge), dl:(dRech>=0?arrow(true)+'<span class="up">'+money(Math.abs(dRech))+'</span> more':'<span class="down">'+money(Math.abs(dRech))+'</span> less')+' than '+mshort(prev.k), cls:'' },
+    { lab:'Average per day', dot:'var(--cy)', val:money(cur.avg), dl:cur.days+' days logged this month', cls:'' }
+  ];
+  document.getElementById('kpis').innerHTML = kpis.map(k=>
+    '<div class="card kpi"><div class="lab"><i class="dotc" style="background:'+k.dot+'"></i>'+k.lab+'</div>'+
+    '<div class="val">'+k.val+'</div><div class="dl">'+k.dl+'</div></div>').join('');
+
+  /* year-to-date pair (follows the Month-wise year selector) */
+  const ys = monthsInYear(selYear);
+  const range = ys.length ? mname(ys[0]).slice(0,3)+' – '+mshort(ys[ys.length-1]) : '—';
+  const ytdKpis=[
+    { lab:(selYear===Math.floor(THIS/100)?'YTD ':'')+'consumed', dot:'var(--pink)', val:money(YTD()),  dl:range },
+    { lab:(selYear===Math.floor(THIS/100)?'YTD ':'')+'recharged', dot:'var(--g1)',  val:money(YTDr()), dl:range }
+  ];
+  document.getElementById('ytdLab').textContent = (selYear===Math.floor(THIS/100) ? 'Year to date' : 'Year total')+' · '+selYear;
+  document.getElementById('ytdKpis').innerHTML = ytdKpis.map(k=>
+    '<div class="card kpi"><div class="lab"><i class="dotc" style="background:'+k.dot+'"></i>'+k.lab+'</div>'+
+    '<div class="val">'+k.val+'</div><div class="dl">'+k.dl+'</div></div>').join('');
+}
+function renderMonth(){
+  const list = byMonth.filter(m=>Math.floor(m.k/100)===selYear);
+  document.getElementById('sumRange').textContent = mshort(list[0].k)+' – '+mshort(list[list.length-1].k);
+
+  const tb=document.querySelector('#sumTable tbody'); tb.innerHTML='';
+  list.slice().reverse().forEach(m=>{
+    const tr=document.createElement('tr');
+    tr.className='clickable'+(m.k===THIS?' thisrow':'');
+    tr.innerHTML='<td class="mono">'+mlong(m.k)+'</td><td>'+money0(m.recharge)+'</td><td class="mono">'+money0(m.consumption)+'</td>'+
+                 '<td class="muted">'+m.days+'</td><td class="muted">'+money0(m.avg)+'</td>';
+    tr.addEventListener('click',()=>openLogMonth(m.k));
+    tb.appendChild(tr);
+  });
+  const tR=list.reduce((a,m)=>a+m.recharge,0), tC=list.reduce((a,m)=>a+m.consumption,0), tD=list.reduce((a,m)=>a+m.days,0);
+  const tr=document.createElement('tr');
+  tr.style.cssText='border-top:2px solid var(--sep); font-weight:600';
+  tr.innerHTML='<td class="mono">'+selYear+' total</td><td>'+money0(tR)+'</td><td class="mono">'+money0(tC)+'</td>'+
+               '<td class="muted">'+tD+'</td><td class="muted">'+money0(tC/tD)+'</td>';
+  tb.appendChild(tr);
+}
+(function(){
+  const ys=document.getElementById('yearSel');
+  ys.innerHTML=YEARS.map(y=>'<option value="'+y+'">'+y+'</option>').join('');
+  ys.value=selYear;
+  ys.addEventListener('change',()=>{ selYear=Number(ys.value); renderMonth(); renderOverview(); paintCharts(); });
+})();
+
+/* ============================ month navigator (‹ Month ▾ › + year) ============================ */
+function monthNav(ids, onChange){
+  const P=document.getElementById(ids.prev), N=document.getElementById(ids.next),
+        L=document.getElementById(ids.label), S=document.getElementById(ids.select),
+        Y=document.getElementById(ids.year);
+  const chev = d => '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="'+(d<0?'M15 18l-6-6 6-6':'M9 18l6-6-6-6')+'"/></svg>';
+  P.innerHTML=chev(-1); N.innerHTML=chev(1);
+  Y.innerHTML=YEARS.map(y=>'<option value="'+y+'">'+y+'</option>').join('');
+  let idx=MONTHS.length-1;
+  function sync(){
+    const k=MONTHS[idx], y=Math.floor(k/100);
+    L.textContent=mname(k); Y.value=y;
+    const list=monthsInYear(y);
+    S.innerHTML=list.slice().reverse().map(kk=>'<option value="'+kk+'">'+mlong(kk)+'</option>').join('');
+    S.value=k;
+    P.disabled = idx===0;
+    N.disabled = idx===MONTHS.length-1;
+  }
+  P.onclick=()=>{ if(idx>0){ idx--; sync(); onChange(); } };
+  N.onclick=()=>{ if(idx<MONTHS.length-1){ idx++; sync(); onChange(); } };
+  S.onchange=()=>{ idx=MONTHS.indexOf(Number(S.value)); sync(); onChange(); };
+  Y.onchange=()=>{ const list=monthsInYear(Number(Y.value)); idx=MONTHS.indexOf(list[list.length-1]); sync(); onChange(); };
+  sync();
+  return { get key(){ return MONTHS[idx]; }, set(k){ const i=MONTHS.indexOf(k); if(i>=0){ idx=i; sync(); } } };
+}
+
+/* ============================ log book ============================ */
+let logQuery='';
+const logNav = monthNav({prev:'logPrev', next:'logNext', label:'logLabel', select:'logMonth', year:'logYear'}, ()=>renderLog());
+function openLogMonth(k){ logNav.set(k); renderLog(); showTab('log'); }
+document.getElementById('logSearch').addEventListener('input',e=>{ logQuery=e.target.value.toLowerCase().trim(); renderLog(); });
+function logRows(){
+  return ROWS.filter(r=>mkey(r.date)===logNav.key && (
+    !logQuery || r.description.toLowerCase().includes(logQuery) || r.remark.toLowerCase().includes(logQuery)
+  )).slice().reverse();
+}
+function renderLog(){
+  const rows=logRows(), tb=document.querySelector('#logTable tbody'); tb.innerHTML='';
+  document.getElementById('logCount').textContent = rows.length+' of '+ROWS.filter(r=>mkey(r.date)===logNav.key).length+' readings in '+mshort(logNav.key);
+  document.getElementById('logEmpty').hidden = rows.length>0;
+  rows.forEach(r=>{
+    const tag = r.flag==='recharge' ? '<span class="tag">Recharge</span>'
+              : r.flag==='check'    ? '<span class="tag warn">Check</span>'
+              : '<span class="tag graytag">Normal</span>';
+    const tr=document.createElement('tr');
+    tr.innerHTML='<td class="mono">'+dayf(r.date)+'</td><td class="muted">'+r.time+'</td>'+
+      '<td>'+(r.recharge?money0(r.recharge):'<span class="muted">—</span>')+'</td>'+
+      '<td style="text-align:left; white-space:normal; max-width:230px; min-width:150px" class="muted">'+r.description+'</td>'+
+      '<td style="text-align:left; white-space:normal; max-width:210px; min-width:130px" class="muted">'+r.remark+'</td>'+
+      '<td class="mono">'+money0(r.balance)+'</td><td>'+money0(r.consumption)+'</td><td class="muted">'+money0(r.cumulative)+'</td>'+
+      '<td>'+tag+'</td>'+
+      '<td><button class="iconbtn" aria-label="Edit reading" title="Correct this reading">'+
+        '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4l10-10a2.8 2.8 0 0 0-4-4L4 16z"/><path d="M13.5 6.5 17.5 10.5"/></svg>'+
+      '</button></td>';
+    tr.querySelector('.iconbtn').addEventListener('click',()=>openModal(r));
+    tb.appendChild(tr);
+  });
+}
+
+/* ============================ correction modal ============================ */
+const scrim=document.getElementById('scrim'), modal=document.getElementById('modal');
+let editing=null;
+function openModal(r){
+  editing=r;
+  document.getElementById('mTitle').textContent='Correct reading · '+dayf(r.date);
+  document.getElementById('mSub').textContent=r.time+' · '+r.enteredBy+' · '+r.id;
+  document.getElementById('fRech').value=r.recharge||'';
+  document.getElementById('fBal').value=r.balance;
+  document.getElementById('fDesc').value=r.description;
+  document.getElementById('fRem').value=r.remark==='—'?'':r.remark;
+  document.getElementById('mHist').innerHTML =
+    '<li><span class="muted">'+r.time+'</span><span>balance <b>'+money(r.balance)+'</b> · entered by '+r.enteredBy+'</span></li>';
+  scrim.classList.add('on'); modal.classList.add('on');
+  document.getElementById('fBal').focus();
+}
+function closeModal(){ scrim.classList.remove('on'); modal.classList.remove('on'); }
+scrim.onclick=closeModal;
+document.getElementById('mCancel').onclick=closeModal;
+document.getElementById('mSave').onclick=()=>{
+  const r=editing; if(!r) return;
+  r.recharge=Number(document.getElementById('fRech').value||0);
+  r.balance=Number(document.getElementById('fBal').value||0);
+  r.description=document.getElementById('fDesc').value||'—';
+  r.remark=document.getElementById('fRem').value||'—';
+  r.flag = r.recharge>0 ? 'recharge' : (r.flag==='recharge'?'':'');
+  recompute(); closeModal(); renderOverview(); renderMonth(); renderLog(); paintCharts();
+};
+/* re-derive consumption / cumulative after an edit (any row) */
+function recompute(){
+  for(let i=1;i<ROWS.length;i++){
+    const r=ROWS[i];
+    r.consumption = ROWS[i-1].balance + r.recharge - r.balance;
+  }
+  let c=0; ROWS.forEach(r=>{ c+=r.consumption; r.cumulative=c; });
+  /* refresh the month-level numbers used by summary + charts */
+  byMonth.forEach(m=>{
+    m.recharge = m.rows.reduce((a,r)=>a+r.recharge,0);
+    m.consumption = m.rows.reduce((a,r)=>a+r.consumption,0);
+    m.days = byDay(m.rows).length;
+    m.avg = m.consumption/m.days;
+  });
+}
+document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeModal(); });
+
+/* ============================ export ============================ */
+function downloadCSV(name, rows){
+  const csv=rows.map(r=>r.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(',')).join('\r\n');
+  const url=URL.createObjectURL(new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'}));
+  const a=document.createElement('a'); a.href=url; a.download=name; a.click();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+document.getElementById('export').onclick=()=>{
+  const list=byMonth.filter(m=>Math.floor(m.k/100)===selYear);
+  const L=[['Month','Recharge (BDT)','Consumption (BDT)','Days logged','Average per day (BDT)']];
+  list.forEach(m=>L.push([mlong(m.k), Math.round(m.recharge), Math.round(m.consumption), m.days, Math.round(m.avg)]));
+  const tR=list.reduce((a,m)=>a+m.recharge,0), tC=list.reduce((a,m)=>a+m.consumption,0), tD=list.reduce((a,m)=>a+m.days,0);
+  L.push([selYear+' total', Math.round(tR), Math.round(tC), tD, tD?Math.round(tC/tD):0]);
+  downloadCSV('Chittagong-warehouse-electricity-'+selYear+'.csv', L);
+};
+document.getElementById('exportLog').onclick=()=>{
+  const L=[['Date','Time','Recharge (BDT)','Description','Remark','Balance (BDT)','Consumption (BDT)','Cumulative (BDT)','Flag']];
+  logRows().forEach(r=>L.push([dayf(r.date), r.time, Math.round(r.recharge), r.description, r.remark, Math.round(r.balance), Math.round(r.consumption), Math.round(r.cumulative), r.flag||'normal']));
+  downloadCSV('Chittagong-warehouse-logbook-'+logNav.key+'.csv', L);
+};
+
+/* ============================ analytics month ============================ */
+const anaNav = monthNav({prev:'anaPrev', next:'anaNext', label:'anaLabel', select:'anaMonth', year:'anaYear'}, ()=>paintCharts());
+
+/* ============================ theme change ============================ */
+if(window.matchMedia){
+  const mq=window.matchMedia('(prefers-color-scheme: dark)');
+  (mq.addEventListener? mq.addEventListener('change',scheduleCharts) : mq.addListener(scheduleCharts));
+}
+
+/* ============================ theme toggle ============================ */
+function applyTheme(dark){ document.documentElement.setAttribute('data-theme', dark?'dark':'light'); }
+document.getElementById('themeToggle').addEventListener('click', ()=>{
+  applyTheme(document.documentElement.getAttribute('data-theme')==='light');
+  try{ localStorage.setItem('theme', document.documentElement.getAttribute('data-theme')); }catch(e){}
+  scheduleCharts();
+});
+if(window.matchMedia){
+  const mq=window.matchMedia('(prefers-color-scheme: dark)');
+  const onOS=e=>{ if(!localStorage.getItem('theme')){ applyTheme(e.matches); scheduleCharts(); } };
+  (mq.addEventListener? mq.addEventListener('change',onOS) : mq.addListener(onOS));
+}
+
+/* ============================ boot ============================ */
+Chart.defaults.font.family='Montserrat, sans-serif';
+Chart.defaults.font.size=12;
+Chart.defaults.animation.duration=520;
+renderOverview();
+renderMonth();
+renderLog();
+scheduleCharts();
+if(document.fonts && document.fonts.ready) document.fonts.ready.then(scheduleCharts);
+</script>
+</body>
+</html>
