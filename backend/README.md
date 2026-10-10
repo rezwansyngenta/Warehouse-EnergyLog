@@ -68,7 +68,9 @@ python tools/export_xlsx.py "Last 3 Month Log Book.xlsx"
 
 1. In the Sheet add a temporary tab named exactly `Seed`.
 2. Open `data/logbook-seed.csv`, copy everything (header row included) and paste into `Seed!A1`.
-   Sheets may coerce `Date`/`Time` into real dates/times — that is fine, the importer normalises them.
+   Sheets may coerce `Date`/`Time` into real dates/times — the importer normalises them **provided**
+   both time zones are `Asia/Dhaka` (steps 1–2). To avoid the coercion entirely, select `Seed!B:C`
+   and set **Format → Number → Plain text** before pasting.
 3. In the Apps Script editor **Run → `importSeed`**, then read the Execution log:
    `importSeed: added 69, skipped 0, invalid 0`.
 4. Check the `Log` tab: 69 rows with `Row ID` `WH-260001`… and `Entered By` = `Imported`;

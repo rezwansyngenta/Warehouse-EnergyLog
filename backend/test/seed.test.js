@@ -65,3 +65,24 @@ test('requires a Date, Time and Balance header', () => {
   assert.equal(r.bad.length, 1);
   assert.match(r.bad[0], /header/);
 });
+
+test('flags a partially filled row instead of dropping it silently', () => {
+  const { parseSeedRows } = loadCode();
+  const r = parseSeedRows([HEADER, ['', '14:00', 5000, 'top-up', '', '', '']]);
+  assert.equal(r.good.length, 0);
+  assert.equal(r.bad.length, 1);
+  assert.match(r.bad[0], /missing date\/time/);
+});
+
+test('maps columns by header name, not position', () => {
+  const { parseSeedRows } = loadCode();
+  const r = parseSeedRows([
+    ['Balance', 'Description', 'Remark', 'Date', 'Time', 'Recharge', 'Charges'],
+    [9000, 'Evening check', 'note', '2026-08-11', '18:30', 500, 25],
+  ]);
+  assert.equal(r.bad.length, 0);
+  assert.deepEqual(r.good[0], {
+    date: '2026-08-11', time: '18:30', recharge: 500, charges: 25,
+    balance: 9000, description: 'Evening check', remark: 'note'
+  });
+});

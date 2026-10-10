@@ -256,7 +256,8 @@ function parseSeedRows(values) {
   }
   for (let i = 1; i < values.length; i++) {
     const row = values[i];
-    if (!row[iDate] && !row[iBal]) continue;
+    const blank = row.every(function (c) { return c === '' || c === null || c === undefined; });
+    if (blank) continue;
     const input = {
       date: dateToText(row[iDate]), time: timeToText(row[iTime]),
       recharge: iRech >= 0 ? (row[iRech] || 0) : 0,

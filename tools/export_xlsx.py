@@ -5,7 +5,7 @@ Usage:
     python tools/export_xlsx.py ["path/to/Last 3 Month Log Book.xlsx"]
 
 Reads every sheet (one per month), keeps ONLY the raw columns the guard writes
-(Date, Time, Recharge Amount, Decription, Balance) and drops the derived
+(Date, Time, Recharge Amount, Description, Balance) and drops the derived
 "Daily Consumption" column - the backend recomputes consumption/cumulative on
 every read, so it must never be seeded. Output matches the `Seed` tab layout
 that backend/Code.gs `importSeed()` expects.
