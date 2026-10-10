@@ -44,3 +44,42 @@ function computeRows(rows, cfg) {
     });
   });
 }
+
+function parseBody(contents) {
+  try { return { ok: true, value: JSON.parse(contents) }; }
+  catch (e) { return { ok: false, error: 'invalid JSON body' }; }
+}
+
+function validateEntry(input, now) {
+  const errors = [];
+  const num = function (v, def) {
+    if (v === undefined || v === null || v === '') return def;
+    const n = Number(v);
+    return isNaN(n) ? NaN : n;
+  };
+  const balance = num(input.balance, NaN);
+  if (isNaN(balance)) errors.push('balance');
+  const recharge = num(input.recharge, 0);
+  if (isNaN(recharge) || recharge < 0) errors.push('recharge');
+  const charges = num(input.charges, 0);
+  if (isNaN(charges) || charges < 0) errors.push('charges');
+  const date = input.date || now.date;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) errors.push('date');
+  const time = input.time || now.time;
+  if (!/^\d{2}:\d{2}$/.test(time)) errors.push('time');
+  if (errors.length) return { ok: false, errors: errors };
+  return { ok: true, value: {
+    date: date, time: time, recharge: recharge, charges: charges, balance: balance,
+    description: String(input.description || ''), remark: String(input.remark || '')
+  }};
+}
+
+function formatRowId(year, seq) {
+  return 'WH-' + String(year).slice(-2) + String(seq).padStart(4, '0');
+}
+
+function parseRowId(id) {
+  const m = /^WH-(\d{2})(\d{4})$/.exec(String(id || ''));
+  if (!m) return null;
+  return { year: 2000 + Number(m[1]), seq: Number(m[2]) };
+}
