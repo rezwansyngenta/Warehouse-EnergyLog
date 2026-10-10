@@ -239,6 +239,40 @@ function isBlocked(state, nowMs) {
   return !!state && state.lockedUntilMs > nowMs;
 }
 
+// Parses a 2-D `Seed` sheet (header row + data rows) into validated entries.
+// Pure (no Apps Script globals) so it is Node-testable. Blank trailing rows are
+// ignored; rows with a missing/invalid Date, Time or Balance are listed in `bad`.
+// Accepts raw Sheet values (real Dates/Times included) via dateToText/timeToText.
+function parseSeedRows(values) {
+  const out = { good: [], bad: [] };
+  if (!values || !values.length) return out;
+  const head = values[0].map(function (h) { return String(h).trim().toLowerCase(); });
+  const idx = function (n) { return head.indexOf(n); };
+  const iDate = idx('date'), iTime = idx('time'), iRech = idx('recharge'),
+        iDesc = idx('description'), iRem = idx('remark'), iBal = idx('balance'), iChg = idx('charges');
+  if (iDate < 0 || iTime < 0 || iBal < 0) {
+    out.bad.push('header must contain Date, Time and Balance');
+    return out;
+  }
+  for (let i = 1; i < values.length; i++) {
+    const row = values[i];
+    if (!row[iDate] && !row[iBal]) continue;
+    const input = {
+      date: dateToText(row[iDate]), time: timeToText(row[iTime]),
+      recharge: iRech >= 0 ? (row[iRech] || 0) : 0,
+      description: iDesc >= 0 ? String(row[iDesc] || '') : '',
+      remark: iRem >= 0 ? String(row[iRem] || '') : '',
+      balance: row[iBal],
+      charges: iChg >= 0 ? (row[iChg] || 0) : 0
+    };
+    if (!input.date || !input.time) { out.bad.push('row ' + (i + 1) + ': missing date/time'); continue; }
+    const v = validateEntry(input, {});
+    if (!v.ok) { out.bad.push('row ' + (i + 1) + ': ' + v.errors.join(',')); continue; }
+    out.good.push(v.value);
+  }
+  return out;
+}
+
 // ---- Apps Script glue (Sheet I/O). No globals are touched at load time. ----
 
 const LOG_COLUMNS = ['Row ID','Date','Time','Recharge','Description','Remark','Balance','Charges','Entered By','Edited By','Updated At'];
@@ -278,6 +312,30 @@ function objectToRow(o) {
 function readLogRows() {
   const values = sheet('Log').getDataRange().getValues();
   return values.slice(1).filter(function (r) { return r[0]; }).map(rowToObject);
+}
+
+// One-shot import of the historical log from a `Seed` tab (see data/logbook-seed.csv).
+// Idempotent: a row is skipped when Date+Time+Balance already exist in `Log`, so the
+// function can be re-run safely. Entries go through appendLogRow, so each gets a Row ID,
+// an Audit row (Action=create) and Entered By="Imported".
+function importSeed() {
+  const sh = SpreadsheetApp.getActive().getSheetByName('Seed');
+  if (!sh) throw new Error("No 'Seed' tab. Create a tab named exactly Seed and paste data/logbook-seed.csv into it (row 1 = headers).");
+  const parsed = parseSeedRows(sh.getDataRange().getValues());
+  const seen = {};
+  readLogRows().forEach(function (r) { seen[r.date + '|' + r.time + '|' + r.balance] = true; });
+  let added = 0, skipped = 0;
+  parsed.good.forEach(function (v) {
+    const key = v.date + '|' + v.time + '|' + v.balance;
+    if (seen[key]) { skipped++; return; }
+    appendLogRow(v, 'Imported');
+    seen[key] = true;
+    added++;
+  });
+  const msg = 'importSeed: added ' + added + ', skipped ' + skipped +
+    ', invalid ' + parsed.bad.length + (parsed.bad.length ? ' -- ' + parsed.bad.join('; ') : '');
+  Logger.log(msg);
+  return msg;
 }
 
 function todayDhaka() {

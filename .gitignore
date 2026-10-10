@@ -2,3 +2,7 @@ node_modules/
 *.log
 backend/.clasprc.json
 .superpowers/
+
+# Source data captured by hand (CSV seed in data/ is the tracked copy)
+*.xlsx
+Last 3 Month Log Book.md

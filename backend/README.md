@@ -55,6 +55,39 @@ node --test "backend/test/*.test.js"
 9. **Wire the front end.** Put the `/exec` URL into the front-end config as a single constant
    (front-end wiring is its own task/plan).
 
+## Load the historical log (one-off, browser only)
+
+`data/logbook-seed.csv` holds the **Aug 11 – Oct 10 2026** readings transcribed from the
+paper log book. It keeps only the raw columns the guard writes; `Consumption` and
+`Cumulative` are recomputed on every read and are therefore **never** seeded. Regenerate
+the CSV from the monthly workbook with:
+
+```
+python tools/export_xlsx.py "Last 3 Month Log Book.xlsx"
+```
+
+1. In the Sheet add a temporary tab named exactly `Seed`.
+2. Open `data/logbook-seed.csv`, copy everything (header row included) and paste into `Seed!A1`.
+   Sheets may coerce `Date`/`Time` into real dates/times — that is fine, the importer normalises them.
+3. In the Apps Script editor **Run → `importSeed`**, then read the Execution log:
+   `importSeed: added 69, skipped 0, invalid 0`.
+4. Check the `Log` tab: 69 rows with `Row ID` `WH-260001`… and `Entered By` = `Imported`;
+   the `Audit` tab has 69 `create` rows.
+5. Delete the `Seed` tab.
+
+The import is **idempotent** — re-running skips any row whose `Date`+`Time`+`Balance`
+is already in `Log`.
+
+### Expected result
+
+- 69 readings, 8 recharge rows, total consumption **BDT 251,871**, no negative days.
+- On recharge rows the guard left `Daily Consumption` blank; the backend fills them. Every
+  value he *did* write matches the backend exactly (verified), so the chain
+  `consumption = prev_balance + recharge − balance` is correct.
+- 9 rows trip the placeholder `PlausThreshold` of 5000 — these are genuine outliers in the
+  paper data, **not** computation errors: `08-15, 09-01, 09-13, 09-15, 09-24, 09-28, 10-01 (×2), 10-05`.
+  Raise `PlausThreshold` in `Config` to ~8000–10000 once real usage is confirmed.
+
 ## API
 
 - `GET ?action=ping` → `{ok:true, version}`
