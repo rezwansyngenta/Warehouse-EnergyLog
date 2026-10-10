@@ -15,10 +15,10 @@ warehouse: a guard phone app and a management dashboard, backed by a Google Shee
 ## Quick start
 
 See [`backend/README.md`](backend/README.md): create the Sheet, paste `backend/Code.gs`
-into the Apps Script editor, run `setup` and `setPin`, deploy as a Web App, then load the
-history with `importSeed`.
+into the Apps Script editor, run `setup`, deploy as a Web App, then load the history with
+`importSeed`. Reads and writes are open — there is no PIN to set.
 
 ## Status
 
-- **Backend:** implemented; 44 local tests green (`node --test "backend/test/*.test.js" "preview/test/*.test.js"`). Live Web App deployed and reachable (reads open, writes PIN-gated).
-- **Front end:** guard app and dashboard are wired to the live API and verified in a browser from the Pages origin. Pending on the live Sheet: `setPin` (writes are PIN-gated) and the one-off history import via `importSeed`.
+- **Backend:** implemented; 38 local tests green (`node --test "backend/test/*.test.js" "preview/test/*.test.js"`). Live Web App deployed and reachable (reads and writes open — the PIN gate was removed).
+- **Front end:** guard app and dashboard are wired to the live API and verified in a browser from the Pages origin. Pending on the live Sheet: re-paste the updated `Code.gs` (redeploy as a new version) and the one-off history import via `importSeed`.

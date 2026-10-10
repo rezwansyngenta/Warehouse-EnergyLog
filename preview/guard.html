@@ -596,7 +596,7 @@ document.getElementById('balSave').onclick=async ()=>{
   const bal = balBuf.value();
   if(!bal){ balNum.classList.add('empty'); return; }
   const btn=document.getElementById('balSave'); btn.disabled=true;
-  const res = await apiWrite({ action:'add', recharge:0, balance:bal, description:'Balance Check', remark:'' });
+  const res = await apiPost({ action:'add', recharge:0, balance:bal, description:'Balance Check', remark:'' });
   btn.disabled=false;
   if(!res.ok){ toast(saveError(res)); return; }
   balBuf.press('C'); hideSheet();
@@ -625,7 +625,7 @@ document.getElementById('rcSave').onclick=async ()=>{
   if(!rcVals.amount){ toast('Enter the recharge amount first.'); return; }
   if(!rcVals.balance){ toast('Enter the balance the meter shows after the top-up.'); return; }
   const btn=document.getElementById('rcSave'); btn.disabled=true;
-  const res = await apiWrite({ action:'add', recharge:rcVals.amount, balance:rcVals.balance, description:'Balance Check', remark:'' });
+  const res = await apiPost({ action:'add', recharge:rcVals.amount, balance:rcVals.balance, description:'Balance Check', remark:'' });
   btn.disabled=false;
   if(!res.ok){ toast(saveError(res)); return; }
   rcField='amount'; rcVals={amount:0,balance:0};
@@ -658,7 +658,7 @@ document.getElementById('edSave').onclick=async ()=>{
   const r=editing, v=id=>document.getElementById(id).value;
   if(!r) return;
   const btn=document.getElementById('edSave'); btn.disabled=true;
-  const res = await apiWrite({
+  const res = await apiPost({
     action:'edit', id:r.id,
     date: v('edDate') || isoDate(r.date),
     time: v('edTime') || r.time,

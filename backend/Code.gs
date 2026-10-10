@@ -26,23 +26,7 @@ function doPost(e) {
     if (body.action === 'ping') return json_({ ok: true, pong: true });
     if (body.action !== 'add' && body.action !== 'edit') return json_({ ok: false, error: 'unknown action' });
 
-    const now = Date.now();
     const cfg = readConfig();
-    const rlCfg = {
-      maxFailures: Number(cfg.RateLimitMax) || 5,
-      windowMs: Number(cfg.RateLimitWindow) || 600000,
-      lockoutMs: Number(cfg.RateLimitLockout) || 600000
-    };
-    if (isBlocked(readRL_(), now)) return json_({ ok: false, error: 'bad pin' });
-
-    const hash = readSecret('PinHash');
-    const good = !!hash && pinDigest(readSecret('PinSalt') || '', String(body.pin || ''), sha256Hex_) === hash;
-    if (!good) {
-      writeRL_(registerFailure(readRL_(), now, rlCfg));
-      return json_({ ok: false, error: 'bad pin' });
-    }
-    writeRL_(registerSuccess());
-
     const enteredBy = cfg.GuardName || 'Guard';
     const v = validateEntry(body, todayDhaka());
     if (!v.ok) return json_({ ok: false, error: 'invalid entry: ' + v.errors.join(',') });
@@ -64,12 +48,6 @@ function findRow_(id, plaus) {
   return all.filter(function (r) { return r.id === id; })[0];
 }
 
-function readRL_() {
-  try { return JSON.parse(readSecret('RLState')) || { failures: 0, firstFailureMs: 0, lockedUntilMs: 0 }; }
-  catch (e) { return { failures: 0, firstFailureMs: 0, lockedUntilMs: 0 }; }
-}
-function writeRL_(state) { writeSecret('RLState', JSON.stringify(state)); }
-
 function fail_(err) {
   try {
     MailApp.sendEmail(Session.getEffectiveUser().getEmail(),
@@ -78,18 +56,7 @@ function fail_(err) {
   return json_({ ok: false, error: 'server error' });
 }
 
-// ---- Setup, secrets, triggers ----
-
-function hex_(bytes) {
-  return bytes.map(function (b) {
-    const v = (b < 0 ? b + 256 : b).toString(16);
-    return v.length === 1 ? '0' + v : v;
-  }).join('');
-}
-
-function sha256Hex_(s) {
-  return hex_(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, s));
-}
+// ---- Setup & backup ----
 
 function setup() {
   const cfg = sheet('Config');
@@ -98,9 +65,6 @@ function setup() {
     ['GuardName', 'Guard'],
     ['Timezone', 'Asia/Dhaka'],
     ['PlausThreshold', 5000],
-    ['RateLimitMax', 5],
-    ['RateLimitWindow', 600000],
-    ['RateLimitLockout', 600000],
     ['SheetVersion', 1]
   ];
   const existing = readConfig();
@@ -115,12 +79,6 @@ function setup() {
 
   const has = ScriptApp.getProjectTriggers().some(function (t) { return t.getHandlerFunction() === 'dailyBackup'; });
   if (!has) ScriptApp.newTrigger('dailyBackup').timeBased().everyDays(1).atHour(2).create();
-}
-
-function setPin(pin) {
-  const salt = Utilities.getUuid();
-  writeSecret('PinSalt', salt);
-  writeSecret('PinHash', pinDigest(salt, String(pin), sha256Hex_));
 }
 
 function dailyBackup() {
@@ -213,32 +171,6 @@ function parseRowId(id) {
   return { year: 2000 + Number(m[1]), seq: Number(m[2]) };
 }
 
-function pinDigest(salt, pin, sha256Hex) {
-  return sha256Hex(String(salt) + String(pin));
-}
-
-function registerFailure(state, nowMs, cfg) {
-  const s = state || { failures: 0, firstFailureMs: 0, lockedUntilMs: 0 };
-  if (isBlocked(s, nowMs)) return s;
-  let failures, firstFailureMs;
-  if (!s.firstFailureMs || nowMs - s.firstFailureMs > cfg.windowMs) {
-    failures = 1; firstFailureMs = nowMs;
-  } else {
-    failures = s.failures + 1; firstFailureMs = s.firstFailureMs;
-  }
-  let lockedUntilMs = s.lockedUntilMs;
-  if (failures >= cfg.maxFailures) {
-    lockedUntilMs = nowMs + cfg.lockoutMs; failures = 0; firstFailureMs = 0;
-  }
-  return { failures: failures, firstFailureMs: firstFailureMs, lockedUntilMs: lockedUntilMs };
-}
-
-function registerSuccess() { return { failures: 0, firstFailureMs: 0, lockedUntilMs: 0 }; }
-
-function isBlocked(state, nowMs) {
-  return !!state && state.lockedUntilMs > nowMs;
-}
-
 // Parses a 2-D `Seed` sheet (header row + data rows) into validated entries.
 // Pure (no Apps Script globals) so it is Node-testable. Blank trailing rows are
 // ignored; rows with a missing/invalid Date, Time or Balance are listed in `bad`.
@@ -298,9 +230,6 @@ function readConfig() {
   for (let i = 1; i < values.length; i++) if (values[i][0]) out[values[i][0]] = values[i][1];
   return out;
 }
-
-function readSecret(key) { return PropertiesService.getScriptProperties().getProperty(key); }
-function writeSecret(key, val) { PropertiesService.getScriptProperties().setProperty(key, val); }
 
 function pad2(n) { const s = String(n); return s.length === 1 ? '0' + s : s; }
 

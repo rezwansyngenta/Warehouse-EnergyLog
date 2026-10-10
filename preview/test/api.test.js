@@ -56,10 +56,9 @@ test('mapRows drops rows whose date cannot be parsed', () => {
 });
 
 test('saveError explains the common write failures in plain words', () => {
-  assert.match(api.saveError({ ok: false, error: 'bad pin' }), /Wrong PIN/);
   assert.match(api.saveError({ ok: false, error: 'not found' }), /reload/);
-  assert.strictEqual(api.saveError({ ok: false, error: 'Save cancelled.' }), 'Save cancelled.');
   assert.match(api.saveError({ ok: false, error: 'network' }), /Not saved/);
+  assert.match(api.saveError({ ok: false, error: 'server error' }), /Not saved - server error/);
 });
 
 test('dhakaNow returns a date on the Asia/Dhaka clock', () => {

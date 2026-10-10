@@ -728,7 +728,7 @@ document.getElementById('mCancel').onclick=closeModal;
 document.getElementById('mSave').onclick=async ()=>{
   const r=editing; if(!r) return;
   const btn=document.getElementById('mSave'); btn.disabled=true;
-  const res = await apiWrite({
+  const res = await apiPost({
     action:'edit', id:r.id, date:isoDate(r.date), time:r.time,
     recharge:Number(document.getElementById('fRech').value||0),
     balance:Number(document.getElementById('fBal').value||0),
