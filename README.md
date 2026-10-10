@@ -20,5 +20,5 @@ into the Apps Script editor, run `setup`, deploy as a Web App, then load the his
 
 ## Status
 
-- **Backend:** implemented; 38 local tests green (`node --test "backend/test/*.test.js" "preview/test/*.test.js"`). Live Web App deployed and reachable (reads and writes open — the PIN gate was removed).
-- **Front end:** guard app and dashboard are wired to the live API and verified in a browser from the Pages origin. Pending on the live Sheet: re-paste the updated `Code.gs` (redeploy as a new version) and the one-off history import via `importSeed`.
+- **Backend:** implemented; 40 local tests green (`node --test "backend/test/*.test.js" "preview/test/*.test.js"`). Live Web App deployed and reachable (reads and writes open — the PIN gate was removed).
+- **Front end:** guard app and dashboard are wired to the live API and verified in a browser from the Pages origin against **live data** — all 69 historical readings imported via `importSeed` (total consumption ৳251,871, 8 recharge days, 0 negatives).
