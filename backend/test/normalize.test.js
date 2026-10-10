@@ -14,6 +14,14 @@ test('timeToText pads hours and minutes', () => {
   assert.equal(timeToText(new Date(2026, 0, 5, 9, 5)), '09:05');
 });
 
+test('timeToText re-adds the leading zero Sheets strips on paste', () => {
+  const { timeToText } = loadCode();
+  assert.equal(timeToText('9:32'), '09:32');
+  assert.equal(timeToText('9:05'), '09:05');
+  assert.equal(timeToText('14:00:00'), '14:00');
+  assert.equal(timeToText('nonsense'), 'nonsense'); // left for validation to reject
+});
+
 test('rowToObject normalizes a coerced Date cell back to text', () => {
   const { rowToObject } = loadCode();
   const o = rowToObject(['WH-260001', new Date(2026, 0, 5), new Date(2026, 0, 5, 9, 0), 0, '', '', 9000, 0, 'G', '', new Date(2026, 0, 5, 9, 0, 0)]);

@@ -238,9 +238,12 @@ function dateToText(v) {
   return v.getFullYear() + '-' + pad2(v.getMonth() + 1) + '-' + pad2(v.getDate());
 }
 
+// Accepts "09:32", "9:32" (Sheets strips the leading zero on paste), "09:32:45",
+// or a real time Date, and always returns plain "HH:MM".
 function timeToText(v) {
-  if (!(v instanceof Date)) return v;
-  return pad2(v.getHours()) + ':' + pad2(v.getMinutes());
+  if (v instanceof Date) return pad2(v.getHours()) + ':' + pad2(v.getMinutes());
+  const m = /^(\d{1,2}):(\d{2})(?::\d{2})?$/.exec(String(v == null ? '' : v).trim());
+  return m ? pad2(Number(m[1])) + ':' + m[2] : v;
 }
 
 function rowToObject(r) {

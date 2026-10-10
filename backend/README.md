@@ -75,6 +75,12 @@ python tools/export_xlsx.py "Last 3 Month Log Book.xlsx"
    the `Audit` tab has 69 `create` rows.
 5. Delete the `Seed` tab.
 
+**If a row comes back `invalid …: time`:** Sheets stripped the leading zero on that
+paste — `09:32` became `9:32`. The importer now normalises this, but the *current* `Seed`
+tab data was already read once. Just re-run `importSeed` after pasting the fixed
+`Code.gs`: it is idempotent, so rows already in `Log` (28 here) are skipped and the rest
+complete the set — expect `added 41, skipped 28, invalid 0` the second time.
+
 The import is **idempotent** — re-running skips any row whose `Date`+`Time`+`Balance`
 is already in `Log`.
 

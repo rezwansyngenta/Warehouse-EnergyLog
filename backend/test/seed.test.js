@@ -35,6 +35,13 @@ test('accepts real Date/Time values that Sheets coerces on paste', () => {
   assert.equal(r.good[0].time, '14:05');
 });
 
+test('normalizes times whose leading zero Sheets stripped on paste', () => {
+  const { parseSeedRows } = loadCode();
+  const r = parseSeedRows([HEADER, row('2026-08-12', '9:32', '', 29653)]);
+  assert.equal(r.bad.length, 0);
+  assert.equal(r.good[0].time, '09:32');
+});
+
 test('reports rows with a missing date/time as bad', () => {
   const { parseSeedRows } = loadCode();
   const r = parseSeedRows([HEADER, row('', '', '', 100)]);
