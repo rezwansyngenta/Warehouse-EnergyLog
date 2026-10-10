@@ -36,3 +36,13 @@ test('non-JSON input is rejected by parseBody', () => {
   assert.equal(parseBody('not json').ok, false);
   assert.equal(parseBody('{"action":"add"}').ok, true);
 });
+
+test('an impossible time is rejected', () => {
+  const { validateEntry } = loadCode();
+  assert.equal(validateEntry({ balance: 1, time: '25:99' }, NOW).ok, false);
+});
+
+test('an out-of-range month is rejected', () => {
+  const { validateEntry } = loadCode();
+  assert.equal(validateEntry({ balance: 1, date: '2026-13-01' }, NOW).ok, false);
+});

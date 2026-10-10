@@ -108,6 +108,8 @@ function setup() {
 
   const log = sheet('Log');
   if (log.getLastRow() === 0) log.appendRow(LOG_COLUMNS);
+  log.getRange('B2:C').setNumberFormat('@');   // Date, Time must stay text (no timezone drift)
+  log.getRange('K2:K').setNumberFormat('@');   // Updated At stays text
   const audit = sheet('Audit');
   if (audit.getLastRow() === 0) audit.appendRow(['Timestamp','Row ID','Action','Changed By','Before','After']);
 
@@ -170,6 +172,13 @@ function parseBody(contents) {
   catch (e) { return { ok: false, error: 'invalid JSON body' }; }
 }
 
+function isIsoDate_(s) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(s))) return false;
+  const mo = Number(String(s).slice(5, 7));
+  const da = Number(String(s).slice(8, 10));
+  return mo >= 1 && mo <= 12 && da >= 1 && da <= 31;
+}
+
 function validateEntry(input, now) {
   const errors = [];
   const num = function (v, def) {
@@ -184,9 +193,9 @@ function validateEntry(input, now) {
   const charges = num(input.charges, 0);
   if (isNaN(charges) || charges < 0) errors.push('charges');
   const date = input.date || now.date;
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) errors.push('date');
+  if (!isIsoDate_(date)) errors.push('date');
   const time = input.time || now.time;
-  if (!/^\d{2}:\d{2}$/.test(time)) errors.push('time');
+  if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(time)) errors.push('time');
   if (errors.length) return { ok: false, errors: errors };
   return { ok: true, value: {
     date: date, time: time, recharge: recharge, charges: charges, balance: balance,
@@ -246,9 +255,22 @@ function readConfig() {
 function readSecret(key) { return PropertiesService.getScriptProperties().getProperty(key); }
 function writeSecret(key, val) { PropertiesService.getScriptProperties().setProperty(key, val); }
 
+function pad2(n) { const s = String(n); return s.length === 1 ? '0' + s : s; }
+
+function dateToText(v) {
+  if (!(v instanceof Date)) return v;
+  return v.getFullYear() + '-' + pad2(v.getMonth() + 1) + '-' + pad2(v.getDate());
+}
+
+function timeToText(v) {
+  if (!(v instanceof Date)) return v;
+  return pad2(v.getHours()) + ':' + pad2(v.getMinutes());
+}
+
 function rowToObject(r) {
-  return { id:r[0], date:r[1], time:r[2], recharge:Number(r[3])||0, description:r[4], remark:r[5],
-           balance:Number(r[6])||0, charges:Number(r[7])||0, enteredBy:r[8], editedBy:r[9], updatedAt:r[10] };
+  return { id:r[0], date:dateToText(r[1]), time:timeToText(r[2]), recharge:Number(r[3])||0, description:r[4], remark:r[5],
+           balance:Number(r[6])||0, charges:Number(r[7])||0, enteredBy:r[8], editedBy:r[9],
+           updatedAt:(r[10] instanceof Date) ? r[10].toISOString() : r[10] };
 }
 function objectToRow(o) {
   return [o.id,o.date,o.time,o.recharge,o.description,o.remark,o.balance,o.charges,o.enteredBy,o.editedBy,o.updatedAt];

@@ -30,8 +30,9 @@ node --test "backend/test/*.test.js"
 3. **Paste the code.** Replace the default `Code.gs` with `backend/Code.gs` from this repo.
    (Optional: **Project Settings → Show `appsscript.json`** and paste `backend/appsscript.json`.)
 4. **Run `setup`.** In the editor pick the `setup` function → **Run**. Authorise when asked.
-   This writes the `Config` defaults, adds the `Log` / `Audit` headers if missing, and
-   installs the daily `dailyBackup` trigger.
+   This writes the `Config` defaults, adds the `Log` / `Audit` headers if missing, forces
+   the `Log` `Date`/`Time`/`Updated At` columns to **plain text** (so Sheets never coerces
+   them into real dates), and installs the daily `dailyBackup` trigger.
 5. **Set the PIN.** Edit `setPin` to call it with the warehouse PIN, e.g.
    `function setPin_(){ setPin('4821'); }` → **Run**. The PIN itself is never stored; only a
    salted SHA-256 hash goes into Script Properties.
