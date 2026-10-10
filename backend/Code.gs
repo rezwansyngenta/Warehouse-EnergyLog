@@ -83,3 +83,29 @@ function parseRowId(id) {
   if (!m) return null;
   return { year: 2000 + Number(m[1]), seq: Number(m[2]) };
 }
+
+function pinDigest(salt, pin, sha256Hex) {
+  return sha256Hex(String(salt) + String(pin));
+}
+
+function registerFailure(state, nowMs, cfg) {
+  const s = state || { failures: 0, firstFailureMs: 0, lockedUntilMs: 0 };
+  if (isBlocked(s, nowMs)) return s;
+  let failures, firstFailureMs;
+  if (!s.firstFailureMs || nowMs - s.firstFailureMs > cfg.windowMs) {
+    failures = 1; firstFailureMs = nowMs;
+  } else {
+    failures = s.failures + 1; firstFailureMs = s.firstFailureMs;
+  }
+  let lockedUntilMs = s.lockedUntilMs;
+  if (failures >= cfg.maxFailures) {
+    lockedUntilMs = nowMs + cfg.lockoutMs; failures = 0; firstFailureMs = 0;
+  }
+  return { failures: failures, firstFailureMs: firstFailureMs, lockedUntilMs: lockedUntilMs };
+}
+
+function registerSuccess() { return { failures: 0, firstFailureMs: 0, lockedUntilMs: 0 }; }
+
+function isBlocked(state, nowMs) {
+  return !!state && state.lockedUntilMs > nowMs;
+}
