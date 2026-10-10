@@ -14,10 +14,11 @@ Spec: `C:\Users\s1408765\.opencode\plan\daily-electricity-logbook-design.md` (Ba
 ## Local tests
 
 Pure logic (consumption chain, validation, Row ID, PIN rate-limiting, hex helper) is
-dependency-free and runs under Node 18+:
+dependency-free and runs under Node 18+. The front-end mapping layer in `preview/api.js`
+is covered the same way:
 
 ```
-node --test "backend/test/*.test.js"
+node --test "backend/test/*.test.js" "preview/test/*.test.js"
 ```
 
 ## First-time setup (browser only — no clasp, no Node needed for the server)

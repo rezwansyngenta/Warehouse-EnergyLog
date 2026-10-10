@@ -204,6 +204,10 @@
   .sheet .sub2{font-size:13px; color:var(--text-2); margin-bottom:14px}
   .hist{margin-top:14px; border-top:1px solid var(--sep); padding-top:12px}
   .hist .h{font-size:11px; font-weight:600; letter-spacing:.05em; text-transform:uppercase; color:var(--text-3); margin-bottom:6px}
+  .net{margin:0 16px 10px; padding:9px 12px; border-radius:12px; font-size:12.5px; font-weight:600; text-align:center;
+       background:var(--fill); color:var(--text-2)}
+  .net.err{background:#FDE7EF; color:#B1004A}
+  :root[data-theme="dark"] .net.err{background:#3A0F24; color:#FF9CC0}
 </style>
 </head>
 <body>
@@ -218,6 +222,8 @@
       <svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M21 12.8A8.5 8.5 0 1 1 11.2 3a6.6 6.6 0 0 0 9.8 9.8z"/></svg>
     </button>
   </header>
+
+  <div class="net" id="net" hidden></div>
 
   <main>
     <!-- ============ HOME ============ -->
@@ -281,7 +287,7 @@
       </div>
 
       <div class="loggroup" id="logList"></div>
-      <p class="sub" style="margin:12px 4px 0; font-size:12.5px">Tap a reading to correct it. Corrections are saved as a new version — the earlier value stays in the history.</p>
+      <p class="sub" style="margin:12px 4px 0; font-size:12.5px">Tap a reading to correct it. A correction overwrites the reading; every change is recorded in the audit log.</p>
     </section>
   </main>
 
@@ -372,22 +378,44 @@
   </div>
 </div>
 
+<script src="api.js"></script>
 <script>
 /* ================= data ================= */
-/* Readings come from the Google Sheet (see backend/). No bundled/dummy data - until the
-   front end is wired to the Sheet's /exec API, ROWS is empty and the screens show an
-   empty state rather than fabricated readings. */
+/* Readings come from the Google Sheet via api.js (GET ?action=rows). Consumption,
+   cumulative and plausibility flags are calculated by the server; nothing is stored here. */
 const INIT_BAL=9000;                                     // fallback meter balance before the first row
-const ROWS=[];
+let ROWS=[];
+let months=[], years=[], monthIdx=0, bundled=[], lastRow=null;
+let TODAY = dhakaNow();
 
 /* ================= helpers ================= */
 const money = n => '৳ ' + Math.round(n).toLocaleString('en-US');
 const day   = d => String(d.getDate()).padStart(2,'0') + '.' + String(d.getMonth()+1).padStart(2,'0') + '.' + String(d.getFullYear()).slice(2);
 const mkey  = d => d.getFullYear()*100 + d.getMonth();
 const mname = d => d.toLocaleString('en-US',{month:'long', year:'numeric'});
-const TODAY = new Date(2026,9,10,18,42);
-const bundled = ROWS.slice(0, ROWS.length-1);          // everything already logged
-const lastRow = ROWS[ROWS.length-1];
+
+/* everything that hangs off ROWS is re-derived after each load */
+function derive(){
+  ROWS = ROWS.slice().sort((a,b)=> a.date-b.date || String(a.time).localeCompare(String(b.time)));
+  bundled = ROWS.slice(0, ROWS.length-1);              // everything already logged
+  lastRow = ROWS[ROWS.length-1] || null;
+  months  = [...new Set(ROWS.map(r=>mkey(r.date)))].sort((a,b)=>a-b);
+  years   = [...new Set(months.map(k=>Math.floor(k/100)))].sort((a,b)=>b-a);
+  monthIdx = months.length ? months.length-1 : 0;
+}
+function refreshClock(){
+  document.getElementById('homeDate').textContent = TODAY.toLocaleDateString('en-GB',{weekday:'long', day:'numeric', month:'long'});
+  document.getElementById('balDate').textContent = day(TODAY);
+  document.getElementById('balTime').textContent = TODAY.toTimeString().slice(0,5);
+  document.getElementById('rcDate').textContent = day(TODAY);
+  document.getElementById('rcTime').textContent = TODAY.toTimeString().slice(0,5);
+}
+function setStatus(msg, isErr){
+  const el=document.getElementById('net');
+  el.textContent = msg || '';
+  el.classList.toggle('err', !!isErr);
+  el.hidden = !msg;
+}
 
 /* one point per day: order a day's rows by time, tie-broken by entry order.
    The day's consumption is the sum of its rows (== previous day's last balance + recharges − this day's last balance). */
@@ -463,7 +491,6 @@ function buildPad(padEl, onPress){
 
 /* ================= home ================= */
 function renderHome(){
-  document.getElementById('homeDate').textContent = TODAY.toLocaleDateString('en-GB',{weekday:'long', day:'numeric', month:'long'});
   if(!ROWS.length){
     document.getElementById('heroBal').textContent='—';
     document.getElementById('heroMeta').textContent='No readings yet';
@@ -500,13 +527,12 @@ function logRowEl(r, withEdit){
 }
 
 /* ================= log book (month filter) ================= */
-const months = [...new Set(ROWS.map(r=>mkey(r.date)))].sort((a,b)=>a-b);   // ponytail: frozen at load; a date edit into a brand-new month needs a reload to appear in the picker
-const years  = [...new Set(months.map(k=>Math.floor(k/100)))].sort((a,b)=>b-a);
 const monName = k => new Date(Math.floor(k/100), k%100, 1).toLocaleString('en-US',{month:'long'});
-let monthIdx = months.length-1;
 function syncMonthSel(){
-  const k = months[monthIdx], y = Math.floor(k/100);
   const ys=document.getElementById('ySelect'), ms=document.getElementById('mSelect');
+  ys.innerHTML = years.map(y=>'<option value="'+y+'">'+y+'</option>').join('');
+  if(!months.length){ ms.innerHTML=''; return; }
+  const k = months[monthIdx], y = Math.floor(k/100);
   ys.value = y;
   const list = months.map((kk,i)=>({kk,i})).filter(o=>Math.floor(o.kk/100)===y);
   ms.innerHTML = list.slice().reverse().map(o=>'<option value="'+o.i+'">'+monName(o.kk)+'</option>').join('');
@@ -514,11 +540,11 @@ function syncMonthSel(){
 }
 (function(){
   const ys=document.getElementById('ySelect');
-  ys.innerHTML = years.map(y=>'<option value="'+y+'">'+y+'</option>').join('');
   syncMonthSel();
   ys.addEventListener('change', ()=>{
     const y=Number(ys.value);
     const lastOfYear = months.map((k,i)=>({k,i})).filter(o=>Math.floor(o.k/100)===y).pop();
+    if(!lastOfYear) return;
     monthIdx = lastOfYear.i; renderLog();
   });
   document.getElementById('mSelect').addEventListener('change', e=>{ monthIdx=Number(e.target.value); renderLog(); });
@@ -566,12 +592,16 @@ const balBuf=buffer(balNum, v=>{
   if(c<0) el.textContent = money(Math.abs(c))+' over';
 });
 buildPad(document.getElementById('pad1'), k=>balBuf.press(k));
-document.getElementById('balDate').textContent=day(TODAY);
-document.getElementById('balTime').textContent=TODAY.toTimeString().slice(0,5);
-document.getElementById('balSave').onclick=()=>{
-  if(!balBuf.value()){ balNum.classList.add('empty'); return; }
-  toast('Reading saved for '+day(TODAY)+'.');
+document.getElementById('balSave').onclick=async ()=>{
+  const bal = balBuf.value();
+  if(!bal){ balNum.classList.add('empty'); return; }
+  const btn=document.getElementById('balSave'); btn.disabled=true;
+  const res = await apiWrite({ action:'add', recharge:0, balance:bal, description:'Balance Check', remark:'' });
+  btn.disabled=false;
+  if(!res.ok){ toast(saveError(res)); return; }
   balBuf.press('C'); hideSheet();
+  toast('Reading saved for '+day(TODAY)+'.');
+  await load();
 };
 
 /* ================= recharge entry ================= */
@@ -591,23 +621,22 @@ document.querySelectorAll('#rcSeg button').forEach(b=>b.onclick=()=>{
   document.querySelectorAll('#rcSeg button').forEach(x=>x.classList.toggle('on', x===b));
   rcField=b.dataset.f; rcBuf.set(rcVals[rcField]);
 });
-document.getElementById('rcDate').textContent=day(TODAY);
-document.getElementById('rcTime').textContent=TODAY.toTimeString().slice(0,5);
-document.getElementById('rcSave').onclick=()=>{
+document.getElementById('rcSave').onclick=async ()=>{
   if(!rcVals.amount){ toast('Enter the recharge amount first.'); return; }
-  toast('Recharge saved. Today is flagged as a recharge day.');
+  if(!rcVals.balance){ toast('Enter the balance the meter shows after the top-up.'); return; }
+  const btn=document.getElementById('rcSave'); btn.disabled=true;
+  const res = await apiWrite({ action:'add', recharge:rcVals.amount, balance:rcVals.balance, description:'Balance Check', remark:'' });
+  btn.disabled=false;
+  if(!res.ok){ toast(saveError(res)); return; }
   rcField='amount'; rcVals={amount:0,balance:0};
   document.querySelectorAll('#rcSeg button').forEach(x=>x.classList.toggle('on', x.dataset.f==='amount'));
   rcBuf.set(0); hideSheet();
+  toast('Recharge saved. Today is flagged as a recharge day.');
+  await load();
 };
 
 /* ================= edit sheet ================= */
-const GUARD='Guard (A. Karim)';                          // ponytail: prototype identity, swap for the signed-in guard later
 const isoDate = d => d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
-function recompute(){                                    // ponytail: full O(n) rescan, n≈130; index the affected tail if rows ever grow
-  let prev=INIT_BAL;
-  ROWS.forEach(r=>{ r.consumption=prev+r.recharge-r.balance; prev=r.balance; });
-}
 let editing=null;
 function openEdit(r){
   editing=r;
@@ -619,24 +648,30 @@ function openEdit(r){
   document.getElementById('edBal').value=r.balance;
   document.getElementById('edDesc').value=r.description;
   document.getElementById('edRem').value=r.remark==='—'?'':r.remark;
-  document.getElementById('edHist').innerHTML=(r.history||[]).map(h=>'<div style="padding:3px 0">'+h+'</div>').join('')
-    ||'<div style="padding:3px 0">No edits yet — this is the original entry.</div>';
+  document.getElementById('edHist').innerHTML = r.editedBy
+    ? '<div style="padding:3px 0">Last edited by '+r.editedBy+'</div>'
+    : '<div style="padding:3px 0">No edits yet — this is the original entry.</div>';
   showSheet('sheet-edit');
 }
 document.getElementById('edCancel').onclick=hideSheet;
-document.getElementById('edSave').onclick=()=>{
+document.getElementById('edSave').onclick=async ()=>{
   const r=editing, v=id=>document.getElementById(id).value;
-  (r.history=r.history||[]).push(day(r.date)+' '+r.time+' · '+money(r.balance)+
-    (r.recharge?' · recharge '+money(r.recharge):'')+' · '+r.enteredBy+' → edited by '+GUARD);
-  if(v('edDate')) r.date=new Date(v('edDate')+'T00:00');
-  r.time=v('edTime')||r.time;
-  r.recharge=Number(v('edRech')||0);
-  r.balance=Number(v('edBal')||0);
-  r.description=v('edDesc')||r.description;
-  r.remark=v('edRem')||'—';
-  r.flag = r.recharge>0 ? 'recharge' : (r.flag==='recharge'?'':r.flag);
-  recompute(); hideSheet(); renderHome(); renderLog();
+  if(!r) return;
+  const btn=document.getElementById('edSave'); btn.disabled=true;
+  const res = await apiWrite({
+    action:'edit', id:r.id,
+    date: v('edDate') || isoDate(r.date),
+    time: v('edTime') || r.time,
+    recharge: Number(v('edRech')||0),
+    balance: Number(v('edBal')||0),
+    description: v('edDesc') || r.description,
+    remark: v('edRem') || ''
+  });
+  btn.disabled=false;
+  if(!res.ok){ toast(saveError(res)); return; }
+  hideSheet();
   toast('Reading updated. Later totals recalculated.');
+  await load();
 };
 
 /* ================= toast ================= */
@@ -652,10 +687,23 @@ function toast(msg){
 }
 
 /* ================= boot ================= */
-renderHome();
-renderLog();
-rcRefresh();
+async function load(){
+  setStatus('Loading readings…');
+  try{
+    const data = await apiRows();
+    ROWS = mapRows(data.rows);
+    TODAY = dhakaNow();
+    derive();
+    refreshClock();
+    renderHome(); renderLog(); rcRefresh();
+    setStatus('');
+  }catch(e){
+    setStatus('Could not reach the log. Check the connection, then reload.', true);
+  }
+}
 balBuf.press('C');
+refreshClock();
+load();
 
 /* ================= theme toggle ================= */
 function applyTheme(dark){ document.documentElement.setAttribute('data-theme', dark?'dark':'light'); }
