@@ -1,14 +1,16 @@
-<!doctype html><meta charset="utf-8"><title>probe</title><pre id="out">running…</pre>
+<!doctype html><meta charset="utf-8"><title>API probe</title><pre id="out">running…</pre>
 <script>
 const URL_ = prompt('Paste the /exec URL') || '';
 const log = (s) => document.getElementById('out').textContent += '\n' + s;
+const j = async (r) => { try { return JSON.stringify(await r.json()); } catch (e) { return 'UNREADABLE status ' + r.status; } };
 (async () => {
-  try { const r = await fetch(URL_ + '?action=probe'); log('GET  ' + JSON.stringify(await r.json())); }
-  catch (e) { log('GET  FAIL ' + e); }
+  try { log('GET  ping  ' + await j(await fetch(URL_ + '?action=ping'))); }
+  catch (e) { log('GET  ping  FAIL ' + e); }
   try {
-    const r = await fetch(URL_, { method:'POST', headers:{'Content-Type':'text/plain'},
-      body: JSON.stringify({ action:'probe', hello:'world' }) });
-    log('POST ' + JSON.stringify(await r.json()));
-  } catch (e) { log('POST FAIL ' + e); }
+    log('POST ping  ' + await j(await fetch(URL_, { method:'POST', headers:{'Content-Type':'text/plain'},
+      body: JSON.stringify({ action:'ping' }) })));
+  } catch (e) { log('POST ping  FAIL ' + e); }
+  try { log('GET  rows  ' + await j(await fetch(URL_ + '?action=rows'))); }
+  catch (e) { log('GET  rows  FAIL ' + e); }
 })();
 </script>

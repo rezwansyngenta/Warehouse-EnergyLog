@@ -1,17 +1,137 @@
-function doGet() {
-  return ContentService
-    .createTextOutput(JSON.stringify({ ok: true, probe: 'get' }))
-    .setMimeType(ContentService.MimeType.JSON);
+// ---- API entry points ----
+
+function json_(obj) {
+  return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
+}
+function version_() { return Number(readConfig().SheetVersion) || 1; }
+
+function doGet(e) {
+  try {
+    const action = (e && e.parameter && e.parameter.action) || 'rows';
+    if (action === 'ping') return json_({ ok: true, version: version_() });
+    if (action !== 'rows') return json_({ ok: false, error: 'unknown action' });
+    const cfg = readConfig();
+    const plaus = Number(cfg.PlausThreshold) || 0;
+    return json_({ ok: true, version: version_(),
+      guardName: cfg.GuardName || '', timezone: cfg.Timezone || 'Asia/Dhaka',
+      plausThreshold: plaus, rows: computeRows(readLogRows(), { plausThreshold: plaus }) });
+  } catch (err) { return fail_(err); }
 }
 
 function doPost(e) {
-  return ContentService
-    .createTextOutput(JSON.stringify({
-      ok: true, probe: 'post',
-      type: e.postData && e.postData.type,
-      got: e.postData && e.postData.contents
-    }))
-    .setMimeType(ContentService.MimeType.JSON);
+  try {
+    const parsed = parseBody(e && e.postData && e.postData.contents);
+    if (!parsed.ok) return json_({ ok: false, error: parsed.error });
+    const body = parsed.value || {};
+    if (body.action === 'ping') return json_({ ok: true, pong: true });
+    if (body.action !== 'add' && body.action !== 'edit') return json_({ ok: false, error: 'unknown action' });
+
+    const now = Date.now();
+    const cfg = readConfig();
+    const rlCfg = {
+      maxFailures: Number(cfg.RateLimitMax) || 5,
+      windowMs: Number(cfg.RateLimitWindow) || 600000,
+      lockoutMs: Number(cfg.RateLimitLockout) || 600000
+    };
+    if (isBlocked(readRL_(), now)) return json_({ ok: false, error: 'bad pin' });
+
+    const hash = readSecret('PinHash');
+    const good = !!hash && pinDigest(readSecret('PinSalt') || '', String(body.pin || ''), sha256Hex_) === hash;
+    if (!good) {
+      writeRL_(registerFailure(readRL_(), now, rlCfg));
+      return json_({ ok: false, error: 'bad pin' });
+    }
+    writeRL_(registerSuccess());
+
+    const enteredBy = cfg.GuardName || 'Guard';
+    const v = validateEntry(body, todayDhaka());
+    if (!v.ok) return json_({ ok: false, error: 'invalid entry: ' + v.errors.join(',') });
+    const plaus = Number(cfg.PlausThreshold) || 0;
+
+    if (body.action === 'add') {
+      const row = appendLogRow(v.value, enteredBy);
+      return json_({ ok: true, row: findRow_(row.id, plaus) });
+    }
+    const id = String(body.id || '');
+    if (!parseRowId(id)) return json_({ ok: false, error: 'invalid id' });
+    if (!updateLogRow(id, v.value, enteredBy)) return json_({ ok: false, error: 'not found' });
+    return json_({ ok: true, row: findRow_(id, plaus) });
+  } catch (err) { return fail_(err); }
+}
+
+function findRow_(id, plaus) {
+  const all = computeRows(readLogRows(), { plausThreshold: plaus });
+  return all.filter(function (r) { return r.id === id; })[0];
+}
+
+function readRL_() {
+  try { return JSON.parse(readSecret('RLState')) || { failures: 0, firstFailureMs: 0, lockedUntilMs: 0 }; }
+  catch (e) { return { failures: 0, firstFailureMs: 0, lockedUntilMs: 0 }; }
+}
+function writeRL_(state) { writeSecret('RLState', JSON.stringify(state)); }
+
+function fail_(err) {
+  try {
+    MailApp.sendEmail(Session.getEffectiveUser().getEmail(),
+      'Log Book backend error', String((err && err.stack) || err));
+  } catch (e) {}
+  return json_({ ok: false, error: 'server error' });
+}
+
+// ---- Setup, secrets, triggers ----
+
+function hex_(bytes) {
+  return bytes.map(function (b) {
+    const v = (b < 0 ? b + 256 : b).toString(16);
+    return v.length === 1 ? '0' + v : v;
+  }).join('');
+}
+
+function sha256Hex_(s) {
+  return hex_(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, s));
+}
+
+function setup() {
+  const cfg = sheet('Config');
+  if (cfg.getLastRow() === 0) cfg.appendRow(['Key', 'Value']);
+  const defaults = [
+    ['GuardName', 'Guard'],
+    ['Timezone', 'Asia/Dhaka'],
+    ['PlausThreshold', 5000],
+    ['RateLimitMax', 5],
+    ['RateLimitWindow', 600000],
+    ['RateLimitLockout', 600000],
+    ['SheetVersion', 1]
+  ];
+  const existing = readConfig();
+  defaults.forEach(function (row) { if (existing[row[0]] === undefined) cfg.appendRow(row); });
+
+  const log = sheet('Log');
+  if (log.getLastRow() === 0) log.appendRow(LOG_COLUMNS);
+  const audit = sheet('Audit');
+  if (audit.getLastRow() === 0) audit.appendRow(['Timestamp','Row ID','Action','Changed By','Before','After']);
+
+  const has = ScriptApp.getProjectTriggers().some(function (t) { return t.getHandlerFunction() === 'dailyBackup'; });
+  if (!has) ScriptApp.newTrigger('dailyBackup').timeBased().everyDays(1).atHour(2).create();
+}
+
+function setPin(pin) {
+  const salt = Utilities.getUuid();
+  writeSecret('PinSalt', salt);
+  writeSecret('PinHash', pinDigest(salt, String(pin), sha256Hex_));
+}
+
+function dailyBackup() {
+  const ss = SpreadsheetApp.getActive();
+  const it = DriveApp.getFoldersByName('LogBookBackups');
+  const folder = it.hasNext() ? it.next() : DriveApp.createFolder('LogBookBackups');
+  const stamp = Utilities.formatDate(new Date(), 'Asia/Dhaka', 'yyyy-MM-dd_HHmm');
+  DriveApp.getFileById(ss.getId()).makeCopy(ss.getName() + ' ' + stamp, folder);
+  const files = folder.getFiles();
+  const list = [];
+  while (files.hasNext()) list.push(files.next());
+  list.sort(function (a, b) { return b.getDateCreated() - a.getDateCreated(); });
+  for (let i = 30; i < list.length; i++) list[i].setTrashed(true);
 }
 
 // ---- Pure logic (no Apps Script globals: Node-testable via test/harness.js) ----
