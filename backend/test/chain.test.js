@@ -19,16 +19,18 @@ test('first row is the baseline: consumption 0, cumulative 0', () => {
 test('same-day readings chain correctly and count once each', () => {
   const { computeRows } = loadCode();
   const out = computeRows(rows, { plausThreshold: 5000 });
-  assert.equal(out[1].consumption, 139);            // 9000 + 0 - 8861
-  assert.equal(out[3].consumption, 222);            // 12000 + 0 - 11778
-  assert.equal(out[3].cumulative, 1722);            // 139 + 1361 + 222
+  assert.equal(out[1].consumption, 139);            // 9000 - 8861
+  assert.equal(out[3].consumption, 222);            // 12000 - 11778
+  assert.equal(out[3].cumulative, 361);             // 139 + 0 (recharge adds nothing) + 222
 });
 
-test('a recharge day uses prev + recharge - balance', () => {
+test('a recharge entry carries no consumption of its own', () => {
   const { computeRows } = loadCode();
   const out = computeRows(rows, { plausThreshold: 5000 });
   assert.equal(out[2].rechargeDay, true);
-  assert.equal(out[2].consumption, 1361);           // 8861 + 4500 - 12000
+  assert.equal(out[2].consumption, 0);
+  assert.equal(out[2].flag, '');
+  assert.equal(out[2].cumulative, out[1].cumulative); // the recharge adds nothing
 });
 
 test('out-of-order input is sorted before chaining', () => {

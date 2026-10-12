@@ -418,7 +418,7 @@ function setStatus(msg, isErr){
 }
 
 /* one point per day: order a day's rows by time, tie-broken by entry order.
-   The day's consumption is the sum of its rows (== previous day's last balance + recharges − this day's last balance). */
+   The day's consumption is the sum of its rows - recharge rows add nothing (see computeRows). */
 function byDay(rows){
   const map=new Map();
   rows.forEach((r,i)=>{
@@ -517,10 +517,11 @@ function logRowEl(r, withEdit){
   el.className='logrow';
   const chip = r.flag==='recharge' ? '<span class="chip">Recharge</span>'
             : r.flag==='check'   ? '<span class="chip warn">Check</span>' : '';
+  const isRecharge = r.flag==='recharge';
   el.innerHTML =
     '<div class="day"><div class="d">'+day(r.date)+'</div><div class="t">'+r.time+'</div></div>'+
     '<div class="mid"><div class="amt">'+money(r.balance)+chip+'</div><div class="lbl">balance</div></div>'+
-    '<div class="end"><div class="cons">'+money(r.consumption)+'</div><div class="lbl">used</div></div>'+
+    '<div class="end"><div class="cons">'+(isRecharge?'—':money(r.consumption))+'</div><div class="lbl">'+(isRecharge?'recharge':'used')+'</div></div>'+
     (withEdit?'<button class="editbtn" type="button" aria-label="Edit this reading"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L18.5 9.5a2.1 2.1 0 0 0-3-3L5 17v3z"/><path d="M13.5 6.5l4 4"/></svg></button>':'');
   el.addEventListener('click', ()=>openEdit(r));
   return el;

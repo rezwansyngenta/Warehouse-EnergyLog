@@ -86,19 +86,22 @@ is already in `Log`.
 
 ### Expected result
 
-- 69 readings, 8 recharge rows, total consumption **BDT 251,871**, no negative days.
-- On recharge rows the guard left `Daily Consumption` blank; the backend fills them. Every
-  value he *did* write matches the backend exactly (verified), so the chain
-  `consumption = prev_balance + recharge − balance` is correct.
-- 9 rows trip the placeholder `PlausThreshold` of 5000 — these are genuine outliers in the
-  paper data, **not** computation errors: `08-15, 09-01, 09-13, 09-15, 09-24, 09-28, 10-01 (×2), 10-05`.
-  Raise `PlausThreshold` in `Config` to ~8000–10000 once real usage is confirmed.
+- 69 readings, 8 recharge rows, total consumption **BDT 201,998**, no negative days.
+- A recharge row carries **no consumption of its own** (the paper log leaves that cell blank):
+  it records the top-up and the meter balance shown after it. Every normal entry is charged
+  the drop since the previous entry - which may be a recharge row, whose balance already
+  includes the top-up. Month/YTD consumption is therefore the sum of the daily values.
+- 5 rows trip the placeholder `PlausThreshold` of 5000: `08-15, 09-01, 09-15, 09-24, 10-01`.
+  These are genuine large gaps in the paper data (mostly on or just after recharge days),
+  **not** computation errors. Raise `PlausThreshold` in `Config` to ~8000–10000 once real
+  usage is confirmed.
 
 ## API
 
 - `GET ?action=ping` → `{ok:true, version}`
 - `GET ?action=rows` → `{ok:true, version, guardName, timezone, plausThreshold, rows:[…]}`
-  (rows carry the derived `consumption`, `cumulative`, `rechargeDay`, `flag`).
+  (rows carry the derived `consumption`, `cumulative`, `rechargeDay`, `flag`; a recharge row
+  has `consumption: 0` and no flag).
 - `POST` with a JSON body sent as **`text/plain`**, where the body is
   `{action:"add"|"edit", …}`:
   - `add` — `{action:"add", date?, time?, recharge, balance, description, remark, charges}`

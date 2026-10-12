@@ -20,8 +20,9 @@ test('the committed seed CSV parses cleanly and reproduces the real totals', () 
   const withIds = parsed.good.map((v, i) => Object.assign({}, v, { id: formatRowId(2026, i + 1) }));
   const rows = computeRows(withIds, { plausThreshold: 5000 });
 
-  assert.equal(rows.reduce((s, r) => s + r.consumption, 0), 251871);
+  assert.equal(rows.reduce((s, r) => s + r.consumption, 0), 201998);
   assert.equal(rows.filter((r) => r.recharge > 0).length, 8);
+  assert.equal(rows.filter((r) => r.recharge > 0 && r.consumption !== 0).length, 0);
   assert.equal(rows.filter((r) => r.consumption < 0).length, 0);
-  assert.equal(rows.filter((r) => r.flag).length, 9);
+  assert.equal(rows.filter((r) => r.flag).length, 5);
 });

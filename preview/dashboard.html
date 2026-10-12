@@ -459,7 +459,7 @@ function setStatus(msg, isErr){
 }
 
 /* one point per day: group rows by calendar date, order by time then entry order.
-   The day's consumption is the sum of its rows (== previous day's last balance + recharges − this day's last balance). */
+   The day's consumption is the sum of its rows - recharge rows add nothing (see computeRows). */
 function byDay(rows){
   const map=new Map();
   rows.forEach((r,i)=>{
@@ -696,7 +696,7 @@ function renderLog(){
       '<td>'+(r.recharge?money0(r.recharge):'<span class="muted">—</span>')+'</td>'+
       '<td style="text-align:left; white-space:normal; max-width:230px; min-width:150px" class="muted">'+r.description+'</td>'+
       '<td style="text-align:left; white-space:normal; max-width:210px; min-width:130px" class="muted">'+r.remark+'</td>'+
-      '<td class="mono">'+money0(r.balance)+'</td><td>'+money0(r.consumption)+'</td><td class="muted">'+money0(r.cumulative)+'</td>'+
+      '<td class="mono">'+money0(r.balance)+'</td><td>'+(r.flag==='recharge'?'<span class="muted">—</span>':money0(r.consumption))+'</td><td class="muted">'+money0(r.cumulative)+'</td>'+
       '<td>'+tag+'</td>'+
       '<td><button class="iconbtn" aria-label="Edit reading" title="Correct this reading">'+
         '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4l10-10a2.8 2.8 0 0 0-4-4L4 16z"/><path d="M13.5 6.5 17.5 10.5"/></svg>'+
@@ -759,7 +759,7 @@ document.getElementById('export').onclick=()=>{
 };
 document.getElementById('exportLog').onclick=()=>{
   const L=[['Date','Time','Recharge (BDT)','Description','Remark','Balance (BDT)','Consumption (BDT)','Cumulative (BDT)','Flag']];
-  logRows().forEach(r=>L.push([dayf(r.date), r.time, Math.round(r.recharge), r.description, r.remark, Math.round(r.balance), Math.round(r.consumption), Math.round(r.cumulative), r.flag||'normal']));
+  logRows().forEach(r=>L.push([dayf(r.date), r.time, Math.round(r.recharge), r.description, r.remark, Math.round(r.balance), r.flag==='recharge'?'':Math.round(r.consumption), Math.round(r.cumulative), r.flag||'normal']));
   downloadCSV('Chittagong-warehouse-logbook-'+logNav.key+'.csv', L);
 };
 

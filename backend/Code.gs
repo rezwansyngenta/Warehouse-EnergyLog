@@ -104,6 +104,10 @@ function sortRows(rows) {
   });
 }
 
+// Consumption follows the paper log book: a recharge entry records the top-up and the
+// balance the meter shows after it, but carries no consumption of its own. Each normal
+// entry is charged the drop since the previous entry - which may be a recharge entry,
+// whose balance already includes the top-up (prev_balance - balance).
 function computeRows(rows, cfg) {
   const thr = (cfg && cfg.plausThreshold) || 0;
   const sorted = sortRows(rows);
@@ -112,11 +116,13 @@ function computeRows(rows, cfg) {
     const recharge = Number(r.recharge) || 0;
     const balance = Number(r.balance) || 0;
     let consumption = 0;
-    if (i > 0) consumption = (Number(sorted[i - 1].balance) || 0) + recharge - balance;
+    if (i > 0 && recharge === 0) consumption = (Number(sorted[i - 1].balance) || 0) - balance;
     cumulative += consumption;
     let flag = '';
-    if (consumption < 0) flag = 'negative consumption';
-    else if (thr > 0 && consumption > thr) flag = 'implausible jump';
+    if (recharge === 0) {
+      if (consumption < 0) flag = 'negative consumption';
+      else if (thr > 0 && consumption > thr) flag = 'implausible jump';
+    }
     return Object.assign({}, r, {
       recharge: recharge, balance: balance,
       consumption: consumption, cumulative: cumulative,
